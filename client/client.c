@@ -45,6 +45,215 @@ cJSON *get_message(char *message_type, char *contents, char *fields) {
     return message;
 }
 
+void interpret_message(cJSON *message) {
+    char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
+    
+    if(!strcmp(message_type, "JoinResult")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *result = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO JOINRESULT
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "Chat")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *text = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO CHAT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else if(!strcmp(message_type, "StartInstance")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 3) {
+            char *server = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *port = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            char *nonce = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
+			//TODO STARTINSTANCE
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "JoinInstanceResult")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 3) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *number = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            char *result = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
+		    //TODO JOININSTANCERESULT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	else if(!strcmp(message_type, "StartGame")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *rounds = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
+			char names[array_size];
+			char numbers[array_size];
+
+			cJSON *entry;
+			int i = 0;
+			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
+				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				i++;
+			}
+
+		    //TODO JOININSTANCERESULT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	else if(!strcmp(message_type, "StartRound")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 4) {
+            char *word_length = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *round = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
+			int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 3));
+			char names[array_size];
+			char numbers[array_size];
+			char scores[array_size];
+			cJSON *entry;
+			int i = 0;
+			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 3)) {
+				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				scores[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score"));
+				i++;
+			}
+		    //TODO STARTROUND
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	else if(!strcmp(message_type, "PromptForGuess")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 3) {
+            char *word_length = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            char *guess_number = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
+		    //TODO PROMPTFORGUESS
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	else if(!strcmp(message_type, "GuessResponse")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 3) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *guess = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            char *accepted = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
+		    //TODO GUESSRESPONSE
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	else if(!strcmp(message_type, "GuessResult")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
+			char names[array_size];
+			char numbers[array_size];
+			char corrects[array_size];
+			char receipt_times[array_size];
+			char results[array_size];
+			cJSON *entry;
+			int i = 0;
+			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
+				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				corrects[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Correct"));
+				receipt_times[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ReceiptTime"));
+				results[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Result"));
+				i++;
+			}
+		    //TODO GUESSRESULT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+
+	else if(!strcmp(message_type, "EndRound")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
+			char names[array_size];
+			char numbers[array_size];
+			char scores_earned[array_size];
+			char winners[array_size];
+
+			cJSON *entry;
+			int i = 0;
+			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
+				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				scores_earned[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ScoreEarned"));
+				winners[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Winner"));
+				i++;
+			}
+		    //TODO ENDROUND
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+	//TODO
+	else if(!strcmp(message_type, "EndGame")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *winner_name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
+			char names[array_size];
+			char numbers[array_size];
+			char scores[array_size];
+
+			cJSON *entry;
+			int i = 0;
+			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
+				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				scores[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score"));
+				i++;
+			}
+		    //TODO ENDGAME
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else {
+        //TODO ERROR
+    }
+}
+
 void * Thread_Client (void * pData)
 {
 	struct ClientInfo * pClient;
