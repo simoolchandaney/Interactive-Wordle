@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "../cJON.h"
 
 /* Global Defines */
 #define BUFFER_MAX 1000
@@ -18,6 +19,23 @@
 /* Global Variables */
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
+
+cJSON *get_message(char *message_type, char *contents, char *fields) {
+    cJSON *message = cJSON_CreateObject();
+    cJSON_AddStringToObject(message, "MessageType", message_type);
+    cJSON *data = cJSON_CreateArray();
+    
+    for(int i = 0; i < sizeof(contents); i++) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON *field = cJSON_CreateString(fields[0]);
+        cJSON_AddItemToObject(item, contents[0], field);
+        cJSON_AddItemToArray(data, item);
+    }
+
+    cJSON_AddArrayToObject(message, "Data", data);
+
+    return message;
+}
 
 void Server_Lobby (uint16_t nLobbyPort)
 {
@@ -117,8 +135,6 @@ void Server_Lobby (uint16_t nLobbyPort)
 			sleep(15);
 		}		
     }
-
-
 }
 
 int main(int argc, char *argv[]) 
