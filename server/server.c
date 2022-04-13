@@ -23,6 +23,29 @@ bool debugFlag = false;
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
+// fucntion that selects random word from text file
+char * word_to_guess(char * file_name) {
+    int c;
+    int wordCount = 0;
+    FILE *file_handle = fopen (file_name, "r");
+    while ((c = fgetc(file_handle)) != EOF){
+       wordCount++; 
+    }
+    int i;
+    char * words[wordCount];
+    for (i = 0; i < wordCount; i++) {
+        words[i] = malloc(11);
+        fscanf (file_handle, "%s", words[i]); 
+    }
+    int r = rand() % 100;
+    char * result;
+    strcpy(result, words[r]);
+    for (i = 0; i < wordCount; ++i) {
+        free (words[i]); 
+    }
+    return result;
+}
+
 cJSON *get_message(char *message_type, char *contents, char *fields) {
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
@@ -220,6 +243,7 @@ int main(int argc, char *argv[])
             fclose(DFile);
             char fileName[BUFSIZ];
             sprintf(fileName, "../%s", argv[i+1]);
+            // call function that see=lects random word 
         }  
         else if (!strcmp(argv[i], "-dbg")) {
             debugFlag = true;
