@@ -37,7 +37,7 @@ char * word_to_guess(char * file_name) {
         words[i] = malloc(11);
         fscanf (file_handle, "%s", words[i]); 
     }
-    int r = rand() % 100;
+    int r = rand() % wordCount;
     char * result;
     strcpy(result, words[r]);
     for (i = 0; i < wordCount; ++i) {
