@@ -37,6 +37,60 @@ cJSON *get_message(char *message_type, char *contents, char *fields) {
     return message;
 }
 
+void interpret_message(cJSON *message) {
+    char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
+    
+    if(!strcmp(message_type, "Join")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *client = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO JOIN
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "Chat")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *text = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO CHAT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else if(!strcmp(message_type, "JoinInstance")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *nonce = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO JOININSTANCE
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "Guess")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *guess = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO GUESS
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else {
+        //TODO ERROR
+    }
+}
+
 void Server_Lobby (uint16_t nLobbyPort)
 {
 	// Adapting this from Beej's Guide
