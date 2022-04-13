@@ -14,6 +14,85 @@
 #include <stdbool.h>
 
 bool debugFlag = false;
+#include "../cJON.h"
+
+/* Global Defines */
+#define BUFFER_MAX 1000
+
+/* Global Variables */
+char g_bKeepLooping = 1;
+pthread_mutex_t 	g_BigLock;
+
+cJSON *get_message(char *message_type, char *contents, char *fields) {
+    cJSON *message = cJSON_CreateObject();
+    cJSON_AddStringToObject(message, "MessageType", message_type);
+    cJSON *data = cJSON_CreateArray();
+    
+    for(int i = 0; i < sizeof(contents); i++) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON *field = cJSON_CreateString(fields[0]);
+        cJSON_AddItemToObject(item, contents[0], field);
+        cJSON_AddItemToArray(data, item);
+    }
+
+    cJSON_AddArrayToObject(message, "Data", data);
+
+    return message;
+}
+
+void interpret_message(cJSON *message) {
+    char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
+    
+    if(!strcmp(message_type, "Join")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *client = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO JOIN
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "Chat")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *text = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO CHAT
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else if(!strcmp(message_type, "JoinInstance")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *nonce = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO JOININSTANCE
+        }
+        else {
+            //TODO ERROR
+        }
+    }
+    else if(!strcmp(message_type, "Guess")) {
+        cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
+        if(cJSON_GetArraySize(data) == 2) {
+            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
+            char *guess = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
+            //TODO GUESS
+        }
+        else {
+            //TODO ERROR
+        }
+    
+    }
+    else {
+        //TODO ERROR
+    }
+}
 
 void Server_Lobby (uint16_t nLobbyPort)
 {
@@ -113,8 +192,6 @@ void Server_Lobby (uint16_t nLobbyPort)
 			sleep(15);
 		}		
     }
-
-
 }
 
 int main(int argc, char *argv[]) 
@@ -125,7 +202,7 @@ int main(int argc, char *argv[])
     int numRounds = 3;
     FIlE *DFile;
     DFile = fopen("../terms.txt", "r+");
-    
+
     for (int i = 1; i < argc; i+=2) {
         if (!strcmp(argv[i], "-np")) {
             numPlayers = atoi(argv[i+1]);

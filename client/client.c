@@ -28,6 +28,23 @@ struct ClientInfo
 };
 
 
+cJSON *get_message(char *message_type, char *contents, char *fields) {
+    cJSON *message = cJSON_CreateObject();
+    cJSON_AddStringToObject(message, "MessageType", message_type);
+    cJSON *data = cJSON_CreateArray();
+    
+    for(int i = 0; i < sizeof(contents); i++) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON *field = cJSON_CreateString(fields[0]);
+        cJSON_AddItemToObject(item, contents[0], field);
+        cJSON_AddItemToArray(data, item);
+    }
+
+    cJSON_AddArrayToObject(message, "Data", data);
+
+    return message;
+}
+
 void * Thread_Client (void * pData)
 {
 	struct ClientInfo * pClient;
@@ -80,9 +97,35 @@ void * Thread_Client (void * pData)
 
 int main(int argc, char *argv[]) 
 {
+
+    char player_name[BUFSIZ];
+    char server_name[BUFSIZ];
+    char lobby_port[BUFSIZ];
+    char game_port[BUFSIZ];
+    char nonce[BUFSIZ];
+
+    for(int i = 1; i < argc; i++) {
+
+        if(!strcmp(argv[i], "-name")) {
+            strcpy(player_name, argv[i+1]);
+        }
+        else if(!strcmp(argv[i], "-server")) {
+            strcpy(server_name, argv[i+1]);
+        }
+        else if(!strcmp(argv[i], "-port")) {
+            strcpy(lobby_port, argv[i+1]);
+        }
+        else if(!strcmp(argv[i], "-game")) {
+            strcpy(lobby_port, argv[i+1]);
+        }
+        else if(!strcmp(argv[i], "-nonce")) {
+            strcpy(nonce, argv[i+1]);
+        }
+        else continue;
+    }
+
 	pthread_mutex_init(&g_BigLock, NULL);
 	
-	Server_Lobby(41000);
 
 	printf("Sleeping before exiting\n");
 	sleep(15);
