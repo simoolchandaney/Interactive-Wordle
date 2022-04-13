@@ -28,6 +28,23 @@ struct ClientInfo
 };
 
 
+cJSON *get_message(char *message_type, char *contents, char *fields) {
+    cJSON *message = cJSON_CreateObject();
+    cJSON_AddStringToObject(message, "MessageType", message_type);
+    cJSON *data = cJSON_CreateArray();
+    
+    for(int i = 0; i < sizeof(contents); i++) {
+        cJSON *item = cJSON_CreateObject();
+        cJSON *field = cJSON_CreateString(fields[0]);
+        cJSON_AddItemToObject(item, contents[0], field);
+        cJSON_AddItemToArray(data, item);
+    }
+
+    cJSON_AddArrayToObject(message, "Data", data);
+
+    return message;
+}
+
 void * Thread_Client (void * pData)
 {
 	struct ClientInfo * pClient;
