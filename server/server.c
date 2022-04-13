@@ -32,7 +32,7 @@ char * word_to_guess(char * file_name) {
        wordCount++; 
     }
     int i;
-    char * words[wordCount];
+    char words[wordCount];
     for (i = 0; i < wordCount; i++) {
         words[i] = malloc(11);
         fscanf (file_handle, "%s", words[i]); 
@@ -42,6 +42,30 @@ char * word_to_guess(char * file_name) {
     strcpy(result, words[r]);
     for (i = 0; i < wordCount; ++i) {
         free (words[i]); 
+    }
+    return result;
+}
+
+char * word_guess_color_builder(char * guess, char * key) {
+    char array [strlen(guess)];
+    for (int l = 0; l < sizeof(array); l++) {
+        strcpy(array[l], "GREY"); // grey
+    }
+    for (int i = 0; i < strlen(guess); i++) {
+        for (int j = 0; j < strlen(key); j++) {
+            if (guess[i] == key[j]) {
+                strcpy(array[i], "YELLOW"); // yellow 
+            }
+        }
+    }
+    for (int k = 0; k < strlen(guess); i++) {
+        if (guess[k] == key[k]) {
+            strcpy(array[k], "GREEN"); // green 
+        }
+    }
+    char * result
+    for (int m = 0; m < strlen(guess); m++) {
+        sprintf(result, "%c - %s ", guess[m], array[m]) 
     }
     return result;
 }
