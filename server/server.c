@@ -11,6 +11,9 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <stdbool.h>
+
+bool debugFlag = false;
 
 void Server_Lobby (uint16_t nLobbyPort)
 {
@@ -115,7 +118,39 @@ void Server_Lobby (uint16_t nLobbyPort)
 }
 
 int main(int argc, char *argv[]) 
-{
+{   
+    int numPlayers = 2;
+    int lobbyPort = 8900;
+    int playPorts = 2;
+    int numRounds = 3;
+    FIlE *DFile;
+    DFile = fopen("../terms.txt", "r+");
+    
+    for (int i = 1; i < argc; i+=2) {
+        if (!strcmp(argv[i], "-np")) {
+            numPlayers = atoi(argv[i+1]);
+        }
+        else if (!strcmp(argv[i], "-lp")) {
+            lobbyPort = atoi(argv[i+1]);
+        }
+        else if (!strcmp(argv[i], "-pp")) {
+            playPorts = atoi(argv[i+1]);
+        }
+        else if (!strcmp(argv[i], "-nr")) {
+            numRounds = atoi(argv[i+1]);
+        }
+        else if (!strcmp(argv[i], "-d")) {
+            fclose(DFile);
+            char fileName[BUFSIZ];
+            sprintf(fileName, "../%s", argv[i+1]);
+        }  
+        else if (!strcmp(argv[i], "-dbg")) {
+            debugFlag = true;
+        }
+        else if (!strcmp(argv[i], "-gameonly")) {
+            // TODO: act as a game instance server only awaiting clients on port X (also ignore the provided nonce)
+        }
+    }
 	pthread_mutex_init(&g_BigLock, NULL);
 	
 	Server_Lobby(41000);
@@ -124,5 +159,6 @@ int main(int argc, char *argv[])
 	sleep(15);
 	
 	printf("And we are done\n");
+    fclose(DFile);
 	return 0;
 }	
