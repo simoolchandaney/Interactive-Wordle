@@ -12,6 +12,13 @@
 #include <sys/wait.h>
 #include <signal.h>
 
+/* Global Defines */
+#define BUFFER_MAX 1000
+
+/* Global Variables */
+char g_bKeepLooping = 1;
+pthread_mutex_t 	g_BigLock;
+
 void Server_Lobby (uint16_t nLobbyPort)
 {
 	// Adapting this from Beej's Guide
