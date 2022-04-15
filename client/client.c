@@ -28,7 +28,7 @@ struct ClientInfo
 };
 
 
-cJSON *get_message(char *message_type, char *contents, char *fields) {
+cJSON *get_message(char *message_type, char *contents[], char *fields[]) {
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
     cJSON *data = cJSON_CreateArray();

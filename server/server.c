@@ -23,7 +23,58 @@ bool debugFlag = false;
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
+<<<<<<< HEAD
 cJSON *get_message(char *message_type, char *contents[], char *fields[], char *player_info[], int num_players) {
+=======
+// fucntion that selects random word from text file
+char * word_to_guess(char * file_name) {
+    int c;
+    int wordCount = 0;
+    FILE *file_handle = fopen (file_name, "r");
+    while ((c = fgetc(file_handle)) != EOF){
+       wordCount++; 
+    }
+    int i;
+    char words[wordCount];
+    for (i = 0; i < wordCount; i++) {
+        words[i] = malloc(11);
+        fscanf (file_handle, "%s", words[i]); 
+    }
+    int r = rand() % wordCount;
+    char * result;
+    strcpy(result, words[r]);
+    for (i = 0; i < wordCount; ++i) {
+        free (words[i]); 
+    }
+    return result;
+}
+
+char * word_guess_color_builder(char * guess, char * key) {
+    char array [strlen(guess)];
+    for (int l = 0; l < sizeof(array); l++) {
+        strcpy(array[l], "GREY"); // grey
+    }
+    for (int i = 0; i < strlen(guess); i++) {
+        for (int j = 0; j < strlen(key); j++) {
+            if (guess[i] == key[j]) {
+                strcpy(array[i], "YELLOW"); // yellow 
+            }
+        }
+    }
+    for (int k = 0; k < strlen(guess); i++) {
+        if (guess[k] == key[k]) {
+            strcpy(array[k], "GREEN"); // green 
+        }
+    }
+    char * result
+    for (int m = 0; m < strlen(guess); m++) {
+        sprintf(result, "%c - %s ", guess[m], array[m]) 
+    }
+    return result;
+}
+
+cJSON *get_message(char *message_type, char *contents, char *fields) {
+>>>>>>> 7ef54580d03c5c1f8ecf720ecd1fb445a5b6475c
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
     cJSON *data = cJSON_CreateArray();
@@ -232,6 +283,7 @@ int main(int argc, char *argv[])
             fclose(DFile);
             char fileName[BUFSIZ];
             sprintf(fileName, "../%s", argv[i+1]);
+            // call function that see=lects random word 
         }  
         else if (!strcmp(argv[i], "-dbg")) {
             debugFlag = true;
