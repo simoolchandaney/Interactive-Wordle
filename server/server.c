@@ -23,16 +23,28 @@ bool debugFlag = false;
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
-cJSON *get_message(char *message_type, char *contents, char *fields) {
+cJSON *get_message(char *message_type, char *contents[], char *fields[], char *player_info[], int num_players) {
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
     cJSON *data = cJSON_CreateArray();
     
     for(int i = 0; i < sizeof(contents); i++) {
-        cJSON *item = cJSON_CreateObject();
-        cJSON *field = cJSON_CreateString(fields[0]);
-        cJSON_AddItemToObject(item, contents[0], field);
-        cJSON_AddItemToArray(data, item);
+        if(!strcmp(message, "StartGame") && i == 1) {
+            cJSON *players = cJSON_CreateArray();
+            for(int j = 0; j < num_players; j++) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON *player = cJSON_CreateString(player_info[j]);
+                cJSON_AddItemToObject(item, "Name", player);
+            }
+            cJSON_AddItemToArray(data, players);
+            
+        }
+        else {
+            cJSON *item = cJSON_CreateObject();
+            cJSON *field = cJSON_CreateString(fields[0]);
+            cJSON_AddItemToObject(item, contents[0], field);
+            cJSON_AddItemToArray(data, item);
+        }
     }
 
     cJSON_AddArrayToObject(message, "Data", data);
