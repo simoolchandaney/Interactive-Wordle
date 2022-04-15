@@ -24,8 +24,16 @@ bool debugFlag = false;
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
+struct ClientInfo 
+{
+	pthread_t threadClient;
+	char szIdentifier[100];
+	int  socketClient;
+};
+
 // fucntion that selects random word from text file
 char * word_to_guess(char * file_name) {
+    /*
     int c;
     int wordCount = 0;
     FILE *file_handle = fopen (file_name, "r");
@@ -45,6 +53,7 @@ char * word_to_guess(char * file_name) {
         free (words[i]); 
     }
     return result;
+    */
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
@@ -102,7 +111,7 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
                 cJSON_AddStringToObject(item, "Name", names[j]);
                 cJSON_AddStringToObject(item, "Number", numbers[j]);
                 cJSON_AddStringToObject(item, "Score", scores[j]);
-                cJSON_AddStringToArray(players, item);
+                cJSON_AddItemToArray(players, item);
             }
 
             cJSON_AddItemToObject(data, contents[i], players);
@@ -224,9 +233,59 @@ void interpret_message(cJSON *message) {
     }
 }
 
+void * Thread_Client (void * pData)
+{
+    
+	struct ClientInfo * pClient;
+	struct ClientInfo   threadClient;
+	
+	char szBuffer[BUFFER_MAX];
+	int	 numBytes;
+	
+	/* Typecast to what we need */
+	pClient = (ClientInfo *) pData;
+	
+	/* Copy it over to a local instance */
+	threadClient = *pClient;
+	
+	while(g_bKeepLooping)
+	{
+		if ((numBytes = recv(pClient->socketClient, szBuffer, MAXDATASIZE-1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+
+		szBuffer[numBytes] = '\0';
+
+		// Debug / show what we got
+		printf("Received a message of %d bytes from Client %s\n", numBytes, pClient->szIdentifier);
+		printf("   Message: %s\n", szBuffer);
+		
+		// Do something with it
+						
+		
+		
+		// This is a pretty good time to lock a mutex
+		pthread_mutex_lock(&g_BigLock);
+		
+		// Do something dangerous here that impacts shared information
+		
+		// Echo back the same message
+		if (send(pClient->socketClient, szBuffer, numBytes, 0) == -1)
+		{
+			perror("send");		
+		}
+				
+		// This is a pretty good time to unlock a mutex
+		pthread_mutex_unlock(&g_BigLock);
+	}
+	
+	return NULL;
+}
+
 void Server_Lobby (uint16_t nLobbyPort)
 {
-    /*
+    
 	// Adapting this from Beej's Guide
 	
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -302,7 +361,7 @@ void Server_Lobby (uint16_t nLobbyPort)
 		/* Simple bit of code but this can be helpful to detect successful
 		   connections 
 		 */
-         /*
+         
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
             s, sizeof s);
@@ -315,7 +374,7 @@ void Server_Lobby (uint16_t nLobbyPort)
 
 		/* From OS: Three Easy Pieces 
 		 *   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf */
-		/*pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
+		pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
 		
 		// Bail out when the third client connects after sleeping a bit
 		if(nClientCount == 3)
@@ -324,21 +383,16 @@ void Server_Lobby (uint16_t nLobbyPort)
 			sleep(15);
 		}		
     }
-    */
+    
 }
 
 int main(int argc, char *argv[]) 
 {   
-    char *names[2] = {"Rounds", "PlayerInfo"};
-    char *results[2] = {"5", NULL};
-    char *names2[4] = {"a", "b", "c", "d"};
-    char *numbers[4] = {"100", "200", "300", "400"};
-    printf("%s\n", cJSON_Print(get_message("StartGame", names, results, sizeof(names)/sizeof(names[0]),sizeof(names2)/sizeof(names2[0]), names2, numbers, NULL, NULL, NULL, NULL, NULL, NULL)));
-    /*int numPlayers = 2;
+    int numPlayers = 1;
     int lobbyPort = 8900;
     int playPorts = 2;
     int numRounds = 3;
-    FIlE *DFile;
+    FILE *DFile;
     DFile = fopen("../terms.txt", "r+");
 
     for (int i = 1; i < argc; i+=2) {
@@ -375,6 +429,6 @@ int main(int argc, char *argv[])
 	sleep(15);
 	
 	printf("And we are done\n");
-    fclose(DFile);\*/
+    fclose(DFile);
 	return 0;
 }	

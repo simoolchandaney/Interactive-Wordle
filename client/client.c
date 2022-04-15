@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "../cJSON.h"
 
 /* Global Defines */
 #define BUFFER_MAX 1000
@@ -34,13 +35,11 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[]) {
     cJSON *data = cJSON_CreateArray();
     
     for(int i = 0; i < sizeof(contents); i++) {
-        cJSON *item = cJSON_CreateObject();
-        cJSON *field = cJSON_CreateString(fields[0]);
-        cJSON_AddItemToObject(item, contents[0], field);
-        cJSON_AddItemToArray(data, item);
+        cJSON *field = cJSON_CreateString(fields[i]);
+        cJSON_AddItemToObject(data, contents[i], field);
     }
 
-    cJSON_AddArrayToObject(message, "Data", data);
+    cJSON_AddItemToObject(message, "Data", data);
 
     return message;
 }
@@ -101,14 +100,14 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *rounds = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-			char names[array_size];
-			char numbers[array_size];
+			char *names[array_size];
+			char *numbers[array_size];
 
 			cJSON *entry;
 			int i = 0;
 			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
-				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
+				strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
+				strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
 				i++;
 			}
 
@@ -126,15 +125,15 @@ void interpret_message(cJSON *message) {
             char *round = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
             char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
 			int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 3));
-			char names[array_size];
-			char numbers[array_size];
-			char scores[array_size];
+			char *names[array_size];
+			char *numbers[array_size];
+			char *scores[array_size];
 			cJSON *entry;
 			int i = 0;
 			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 3)) {
-				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
-				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
-				scores[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score"));
+				strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
+				strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
+				strcpy(scores[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score")));
 				i++;
 			}
 		    //TODO STARTROUND
@@ -175,19 +174,19 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-			char names[array_size];
-			char numbers[array_size];
-			char corrects[array_size];
-			char receipt_times[array_size];
-			char results[array_size];
+			char *names[array_size];
+			char *numbers[array_size];
+			char *corrects[array_size];
+			char *receipt_times[array_size];
+			char *results[array_size];
 			cJSON *entry;
 			int i = 0;
 			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
-				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
-				corrects[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Correct"));
-				receipt_times[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ReceiptTime"));
-				results[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Result"));
+				strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
+				strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
+				strcpy(corrects[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Correct")));
+				strcpy(receipt_times[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ReceiptTime")));
+				strcpy(results[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Result")));
 				i++;
 			}
 		    //TODO GUESSRESULT
@@ -203,18 +202,18 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-			char names[array_size];
-			char numbers[array_size];
-			char scores_earned[array_size];
-			char winners[array_size];
+			char *names[array_size];
+			char *numbers[array_size];
+			char *scores_earned[array_size];
+			char *winners[array_size];
 
 			cJSON *entry;
 			int i = 0;
 			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
-				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
-				scores_earned[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ScoreEarned"));
-				winners[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Winner"));
+				strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
+				strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
+				strcpy(scores_earned[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ScoreEarned")));
+				strcpy(winners[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Winner")));
 				i++;
 			}
 		    //TODO ENDROUND
@@ -230,16 +229,16 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *winner_name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-			char names[array_size];
-			char numbers[array_size];
-			char scores[array_size];
+			char *names[array_size];
+			char *numbers[array_size];
+			char *scores[array_size];
 
 			cJSON *entry;
 			int i = 0;
 			cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-				names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
-				numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number"));
-				scores[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score"));
+				strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
+				strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
+				strcpy(scores[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score")));
 				i++;
 			}
 		    //TODO ENDGAME
@@ -254,54 +253,7 @@ void interpret_message(cJSON *message) {
     }
 }
 
-void * Thread_Client (void * pData)
-{
-	struct ClientInfo * pClient;
-	struct ClientInfo   threadClient;
-	
-	char szBuffer[BUFFER_MAX];
-	int	 numBytes;
-	
-	/* Typecast to what we need */
-	pClient = (ClientInfo *) pData;
-	
-	/* Copy it over to a local instance */
-	threadClient = *pClient;
-	
-	while(g_bKeepLooping)
-	{
-		if ((numBytes = recv(pClient->socketClient, szBuffer, MAXDATASIZE-1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
 
-		szBuffer[numBytes] = '\0';
-
-		// Debug / show what we got
-		printf("Received a message of %d bytes from Client %s\n", numBytes, pClient->szIdentifier);
-		printf("   Message: %s\n", szBuffer);
-		
-		// Do something with it
-						
-		
-		
-		// This is a pretty good time to lock a mutex
-		pthread_mutex_lock(&g_BigLock);
-		
-		// Do something dangerous here that impacts shared information
-		
-		// Echo back the same message
-		if (send(pClient->socketClient, szBuffer, numBytes, 0) == -1)
-		{
-			perror("send");		
-		}
-				
-		// This is a pretty good time to unlock a mutex
-		pthread_mutex_unlock(&g_BigLock);
-	}
-	
-	return NULL;
-}
 
 
 int main(int argc, char *argv[]) 
