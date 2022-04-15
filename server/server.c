@@ -12,9 +12,10 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <stdbool.h>
+#include "../cJSON.h"
 
 bool debugFlag = false;
-#include "../cJON.h"
+
 
 /* Global Defines */
 #define BUFFER_MAX 1000
@@ -23,9 +24,6 @@ bool debugFlag = false;
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
-<<<<<<< HEAD
-cJSON *get_message(char *message_type, char *contents[], char *fields[], char *player_info[], int num_players) {
-=======
 // fucntion that selects random word from text file
 char * word_to_guess(char * file_name) {
     int c;
@@ -50,7 +48,7 @@ char * word_to_guess(char * file_name) {
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
-    char array [strlen(guess)];
+    /*char array [strlen(guess)];
     for (int l = 0; l < sizeof(array); l++) {
         strcpy(array[l], "GREY"); // grey
     }
@@ -61,7 +59,7 @@ char * word_guess_color_builder(char * guess, char * key) {
             }
         }
     }
-    for (int k = 0; k < strlen(guess); i++) {
+    for (int k = 0; k < strlen(guess); k++) {
         if (guess[k] == key[k]) {
             strcpy(array[k], "GREEN"); // green 
         }
@@ -71,34 +69,103 @@ char * word_guess_color_builder(char * guess, char * key) {
         sprintf(result, "%c - %s ", guess[m], array[m]) 
     }
     return result;
+    */
 }
 
-cJSON *get_message(char *message_type, char *contents, char *fields) {
->>>>>>> 7ef54580d03c5c1f8ecf720ecd1fb445a5b6475c
+cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length, int num_players, char *names[], char *numbers[], char *scores[], char *corrects[], char *receipt_times[], char * results[], char *scores_earned[], char *winners[]) {
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
-    cJSON *data = cJSON_CreateArray();
-    
-    for(int i = 0; i < sizeof(contents); i++) {
-        if(!strcmp(message, "StartGame") && i == 1) {
+    cJSON *data = cJSON_CreateObject();
+
+    for(int i = 0; i < content_length; i++) {
+        if(!strcmp(message_type, "StartGame") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
+            if(! (names && numbers)) {
+                //ERROR
+            }
             for(int j = 0; j < num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON *player = cJSON_CreateString(player_info[j]);
-                cJSON_AddItemToObject(item, "Name", player);
+                cJSON_AddStringToObject(item, "Name", names[j]);
+                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddItemToArray(players, item);
             }
-            cJSON_AddItemToArray(data, players);
-            
+
+            cJSON_AddItemToObject(data, contents[i], players);
         }
+        else if(!strcmp(message_type, "StartRound") && (!strcmp(contents[i], "PlayerInfo"))) {
+            cJSON *players = cJSON_CreateArray();
+            if(! (names && numbers && scores)) {
+                //ERROR
+            }
+            for(int j = 0; j < num_players; j++) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddStringToObject(item, "Name", names[j]);
+                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddStringToObject(item, "Score", scores[j]);
+                cJSON_AddStringToArray(players, item);
+            }
+
+            cJSON_AddItemToObject(data, contents[i], players);
+        }
+
+        else if(!strcmp(message_type, "GuessResult") && (!strcmp(contents[i], "PlayerInfo"))) {
+            cJSON *players = cJSON_CreateArray();
+            if(! (names && numbers && corrects && receipt_times && results)) {
+                //ERROR
+            }
+            for(int j = 0; j < num_players; j++) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddStringToObject(item, "Name", names[j]);
+                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddStringToObject(item, "Correct", corrects[j]);
+                cJSON_AddStringToObject(item, "ReceiptTime", receipt_times[j]);
+                cJSON_AddStringToObject(item, "Result", results[j]);
+                cJSON_AddItemToArray(players, item);
+            }
+
+            cJSON_AddItemToObject(data, contents[i], players);
+        }
+
+        else if(!strcmp(message_type, "EndRound") && (!strcmp(contents[i], "PlayerInfo"))) {
+            cJSON *players = cJSON_CreateArray();
+            if(! (names && numbers && scores_earned && winners)) {
+                //ERROR
+            }
+            for(int j = 0; j < num_players; j++) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddStringToObject(item, "Name", names[j]);
+                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddStringToObject(item, "ScoreEarned", scores_earned[j]);
+                cJSON_AddStringToObject(item, "Winner", winners[j]);
+                cJSON_AddItemToArray(players, item);
+            }
+
+            cJSON_AddItemToObject(data, contents[i], players);
+        }
+
+        else if(!strcmp(message_type, "EndGame") && (!strcmp(contents[i], "PlayerInfo"))) {
+            cJSON *players = cJSON_CreateArray();
+            if(! (names && numbers && scores)) {
+                //ERROR
+            }
+            for(int j = 0; j < num_players; j++) {
+                cJSON *item = cJSON_CreateObject();
+                cJSON_AddStringToObject(item, "Name", names[j]);
+                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddStringToObject(item, "Score", scores[j]);
+                cJSON_AddItemToArray(players, item);
+            }
+
+            cJSON_AddItemToObject(data, contents[i], players);
+        }
+
         else {
-            cJSON *item = cJSON_CreateObject();
-            cJSON *field = cJSON_CreateString(fields[0]);
-            cJSON_AddItemToObject(item, contents[0], field);
-            cJSON_AddItemToArray(data, item);
+            cJSON *field = cJSON_CreateString(fields[i]);
+            cJSON_AddItemToObject(data, contents[i], field);
         }
     }
 
-    cJSON_AddArrayToObject(message, "Data", data);
+    cJSON_AddItemToObject(message, "Data", data);
 
     return message;
 }
@@ -159,6 +226,7 @@ void interpret_message(cJSON *message) {
 
 void Server_Lobby (uint16_t nLobbyPort)
 {
+    /*
 	// Adapting this from Beej's Guide
 	
     int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
@@ -234,6 +302,7 @@ void Server_Lobby (uint16_t nLobbyPort)
 		/* Simple bit of code but this can be helpful to detect successful
 		   connections 
 		 */
+         /*
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
             s, sizeof s);
@@ -246,7 +315,7 @@ void Server_Lobby (uint16_t nLobbyPort)
 
 		/* From OS: Three Easy Pieces 
 		 *   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf */
-		pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
+		/*pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
 		
 		// Bail out when the third client connects after sleeping a bit
 		if(nClientCount == 3)
@@ -255,11 +324,17 @@ void Server_Lobby (uint16_t nLobbyPort)
 			sleep(15);
 		}		
     }
+    */
 }
 
 int main(int argc, char *argv[]) 
 {   
-    int numPlayers = 2;
+    char *names[2] = {"Rounds", "PlayerInfo"};
+    char *results[2] = {"5", NULL};
+    char *names2[4] = {"a", "b", "c", "d"};
+    char *numbers[4] = {"100", "200", "300", "400"};
+    printf("%s\n", cJSON_Print(get_message("StartGame", names, results, sizeof(names)/sizeof(names[0]),sizeof(names2)/sizeof(names2[0]), names2, numbers, NULL, NULL, NULL, NULL, NULL, NULL)));
+    /*int numPlayers = 2;
     int lobbyPort = 8900;
     int playPorts = 2;
     int numRounds = 3;
@@ -300,6 +375,6 @@ int main(int argc, char *argv[])
 	sleep(15);
 	
 	printf("And we are done\n");
-    fclose(DFile);
+    fclose(DFile);\*/
 	return 0;
 }	
