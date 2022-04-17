@@ -19,17 +19,73 @@ bool debugFlag = false;
 
 /* Global Defines */
 #define BUFFER_MAX 1000
+#define BACKLOG 10   // how many pending connections queue will hold
 
 /* Global Variables */
 char g_bKeepLooping = 1;
 pthread_mutex_t 	g_BigLock;
 
-struct ClientInfo 
+struct ClientInfo
 {
 	pthread_t threadClient;
 	char szIdentifier[100];
 	int  socketClient;
 };
+
+typedef struct Player {
+    char *name;
+    char *client;
+    char *number;
+    char *score;
+    char *correct;
+    char *receipt_time;
+} Player;
+
+typedef struct Wordle
+{
+    struct Player player_info[4];
+    char *word;
+    int num_players;
+} Wordle;
+
+char *chat_message;
+
+Wordle wordle;
+
+#define BACKLOG 10   // how many pending connections queue will hold
+void sigchld_handler(int s) {
+    // waitpid() might overwrite errno, so we save and restore it:
+    int saved_errno = errno;
+    while(waitpid(-1, NULL, WNOHANG) > 0);
+    errno = saved_errno;
+}
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa) {
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+void send_data(struct ClientInfo *pClient, char *response) {
+    printf("response: %s\n", response);
+    if (send(pClient->socketClient, response, strlen(response), 0) == -1)
+	{
+		perror("send");		
+	}
+}
+
+char *receive_data(struct ClientInfo *pClient) {
+    int numBytes;
+    char szBuffer[BUFFER_MAX];
+    if ((numBytes = recv(pClient->socketClient, szBuffer, BUFFER_MAX-1, 0)) == -1) {
+		perror("recv");
+		exit(1);
+	}
+    szBuffer[numBytes] = '\0';
+
+    return szBuffer;
+}
 
 // fucntion that selects random word from text file
 char * word_to_guess(char * file_name) {
@@ -179,7 +235,40 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
     return message;
 }
 
-void interpret_message(cJSON *message) {
+
+
+void join(char *name, char *client, struct ClientInfo *pClient) {
+    char *fields[2] = {name, ""};
+    wordle.num_players += 1;
+    if(wordle.num_players >= 4) {
+        fields[1] = "No";
+    }
+    else {
+        fields[1] = "Yes";
+        Player player;
+        player.name = name;
+        player.client = client;
+        wordle.player_info[wordle.num_players] = player;
+    }
+
+    char *contents[2] = {"Name", "Result"};
+    char *response = cJSON_Print(get_message("JoinResult", contents, fields, 2, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+    send_data(response, pClient);
+}
+
+void chat(char *name, char *text, struct ClientInfo *pClient) {
+    
+}
+
+void joinInstance(char *name, char *nonce, struct ClientInfo *pClient) {
+
+}
+
+void guess(char *name, char *guess) {
+
+}
+
+void interpret_message(cJSON *message, struct ClientInfo *pClient) {
     char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
     
     if(!strcmp(message_type, "Join")) {
@@ -187,7 +276,7 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             char *client = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            //TODO JOIN
+            join(name, client, pClient);  
         }
         else {
             //TODO ERROR
@@ -198,7 +287,7 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             char *text = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            //TODO CHAT
+            chat(name, text, pClient);
         }
         else {
             //TODO ERROR
@@ -210,7 +299,7 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             char *nonce = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            //TODO JOININSTANCE
+            joinInstance(name, nonce, pClient);
         }
         else {
             //TODO ERROR
@@ -221,7 +310,7 @@ void interpret_message(cJSON *message) {
         if(cJSON_GetArraySize(data) == 2) {
             char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             char *guess = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            //TODO GUESS
+            guess(name, guess);
         }
         else {
             //TODO ERROR
@@ -239,42 +328,36 @@ void * Thread_Client (void * pData)
 	struct ClientInfo * pClient;
 	struct ClientInfo   threadClient;
 	
-	char szBuffer[BUFFER_MAX];
-	int	 numBytes;
+	char *szBuffer;
 	
-	/* Typecast to what we need */
-	pClient = (ClientInfo *) pData;
+	// Typecast to what we need 
+	pClient = (struct ClientInfo *) pData;
 	
-	/* Copy it over to a local instance */
+	// Copy it over to a local instance 
 	threadClient = *pClient;
 	
 	while(g_bKeepLooping)
 	{
-		if ((numBytes = recv(pClient->socketClient, szBuffer, MAXDATASIZE-1, 0)) == -1) {
-			perror("recv");
-			exit(1);
-		}
+		szBuffer = receive_data(pClient);
 
-		szBuffer[numBytes] = '\0';
-
-		// Debug / show what we got
+		// Debug / show what we got3
 		printf("Received a message of %d bytes from Client %s\n", numBytes, pClient->szIdentifier);
 		printf("   Message: %s\n", szBuffer);
 		
 		// Do something with it
 						
 		
-		
 		// This is a pretty good time to lock a mutex
 		pthread_mutex_lock(&g_BigLock);
 		
 		// Do something dangerous here that impacts shared information
+        interpret_message(cJSON_Parse(szBuffer), pClient);
 		
 		// Echo back the same message
-		if (send(pClient->socketClient, szBuffer, numBytes, 0) == -1)
-		{
-			perror("send");		
-		}
+		//if (send(pClient->socketClient, szBuffer, numBytes, 0) == -1)
+		//{
+		//	perror("send");		
+		//}
 				
 		// This is a pretty good time to unlock a mutex
 		pthread_mutex_unlock(&g_BigLock);
@@ -283,7 +366,7 @@ void * Thread_Client (void * pData)
 	return NULL;
 }
 
-void Server_Lobby (uint16_t nLobbyPort)
+void Server_Lobby (char *nLobbyPort)
 {
     
 	// Adapting this from Beej's Guide
@@ -307,7 +390,7 @@ void Server_Lobby (uint16_t nLobbyPort)
 
     if ((rv = getaddrinfo(NULL, nLobbyPort, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
+        return;
     }
 
     // loop through all the results and bind to the first we can
@@ -358,13 +441,12 @@ void Server_Lobby (uint16_t nLobbyPort)
             continue;
         }
 
-		/* Simple bit of code but this can be helpful to detect successful
-		   connections 
-		 */
+		// Simple bit of code but this can be helpful to detect successful connections 
+		 
          
         inet_ntop(their_addr.ss_family,
             get_in_addr((struct sockaddr *)&their_addr),
-            s, sizeof s);
+s, sizeof s);
         printf("server: got connection from %s\n", s);
 
 		// Print out this client information 
@@ -372,8 +454,8 @@ void Server_Lobby (uint16_t nLobbyPort)
 		theClientInfo.socketClient = new_fd;
 		nClientCount++;
 
-		/* From OS: Three Easy Pieces 
-		 *   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf */
+		// From OS: Three Easy Pieces 
+		//   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf 
 		pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
 		
 		// Bail out when the third client connects after sleeping a bit
@@ -422,8 +504,10 @@ int main(int argc, char *argv[])
         }
     }
 	pthread_mutex_init(&g_BigLock, NULL);
-	
-	Server_Lobby(41000);
+	wordle.num_players = -1;
+	Server_Lobby("41333");
+
+    //Single_Client("41333");
 
 	printf("Sleeping before exiting\n");
 	sleep(15);

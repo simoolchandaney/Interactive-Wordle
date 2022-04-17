@@ -1,4 +1,4 @@
-
+ 
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,20 +14,36 @@
 #include <signal.h>
 #include "../cJSON.h"
 
-/* Global Defines */
 #define BUFFER_MAX 1000
 
-/* Global Variables */
-char g_bKeepLooping = 1;
-pthread_mutex_t 	g_BigLock;
 
-struct ClientInfo 
+// get sockaddr, IPv4 or IPv6:
+void *get_in_addr(struct sockaddr *sa)
 {
-	pthread_t threadClient;
-	char szIdentifier[100];
-	int  socketClient;
-};
+    if (sa->sa_family == AF_INET) {
+        return &(((struct sockaddr_in*)sa)->sin_addr);
+    }
+    return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
 
+void send_data(int sockfd, char *data) {
+    if ((send(sockfd, data, strlen(data), 0)) == -1) {
+        perror("recv");
+        exit(1);  
+    }
+}
+
+char *receive_data(int sockfd) {
+    char szBuffer[BUFFER_MAX];
+    int numBytes;
+    if ((numBytes = recv(sockfd, szBuffer, BUFFER_MAX - 1, 0)) == -1) {
+			perror("recv");
+			exit(1);
+		}
+    szBuffer[numBytes] = '\0';
+
+    return szBuffer;
+}
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[]) {
     cJSON *message = cJSON_CreateObject();
@@ -265,6 +281,7 @@ int main(int argc, char *argv[])
     char game_port[BUFSIZ];
     char nonce[BUFSIZ];
 
+
     for(int i = 1; i < argc; i++) {
 
         if(!strcmp(argv[i], "-name")) {
@@ -277,21 +294,71 @@ int main(int argc, char *argv[])
             strcpy(lobby_port, argv[i+1]);
         }
         else if(!strcmp(argv[i], "-game")) {
-            strcpy(lobby_port, argv[i+1]);
+            strcpy(game_port, argv[i+1]);
         }
         else if(!strcmp(argv[i], "-nonce")) {
             strcpy(nonce, argv[i+1]);
         }
         else continue;
     }
-
-	pthread_mutex_init(&g_BigLock, NULL);
 	
+    
+    char *contents[2] = {"Name", "Client"};
+    char *fields[2] = {player_name, "ISJ-C"};
+    char *join = cJSON_Print(get_message("Join", contents, fields));
+    uint16_t join_size = strlen(join);
 
-	printf("Sleeping before exiting\n");
-	sleep(15);
-	
-	printf("And we are done\n");
+    int sockfd;
+    struct addrinfo hints, *servinfo, *p;
+	struct sockaddr_in *h;
+    int rv;
+    char s[INET6_ADDRSTRLEN];
+	char ip[100];
+
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if ((rv = getaddrinfo(server_name, lobby_port, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return 1;
+    }
+
+    // loop through all the results and connect to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+
+        if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            perror("client: socket");
+            continue;
+        }
+        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("client: connect");
+            continue;
+        }
+        break;
+    }
+
+    if (p == NULL) {
+        fprintf(stderr, "client: failed to connect\n");
+        return 2;
+    }
+
+    inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
+    printf("client: connecting to %s\n", s);
+    freeaddrinfo(servinfo); // all done with this structure
+
+
+    send_data(sockfd, join);
+
+    char *data = receive_data(sockfd);
+
+    
+    printf("received: %s\n", data);
+    
+	close(sockfd);
+
 	return 0;
 }	
 
