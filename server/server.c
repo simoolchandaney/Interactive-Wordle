@@ -36,6 +36,7 @@ typedef struct Input {
     char *lobbyPort;
     char *playPort;
     int numRounds;
+    char *fileName;
 } Input;
 
 typedef struct Game_Player {
@@ -135,11 +136,11 @@ int get_nonce() {
 }
 
 // fucntion that selects random word from text file
-char * word_to_guess(char * file_name) {
-    /*
-    int c;
+char * word_to_guess() {
+    return "wordle";
+    /*int c;
     int wordCount = 0;
-    FILE *file_handle = fopen (file_name, "r");
+    FILE *file_handle = fopen (wordle.inputs.fileName, "r");
     while ((c = fgetc(file_handle)) != EOF){
        wordCount++; 
     }
@@ -155,8 +156,7 @@ char * word_to_guess(char * file_name) {
     for (i = 0; i < wordCount; ++i) {
         free (words[i]); 
     }
-    return result;
-    */
+    return result;*/
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
@@ -403,10 +403,30 @@ void * Thread_Client_Game (void * pData)
 
     //send start game message
     char *contents[2] = {"Rounds", "PlayerInfo"};
-    char *fields[2] = {"3", NULL};
+    char buffer[2];
+    sprintf(buffer, "%d", wordle.inputs.numRounds);
+    char *fields[2] = {buffer, NULL};
 
     char *response = cJSON_Print(get_message("StartGame", contents, fields, 2));
     send_data(pClient, response);
+
+    //send start round messages
+    int num_round = 1;
+    while(wordle.inputs.numRounds > 0) {
+        char *word = word_to_guess();
+        printf("word: %s with length of %d\n", word, strlen(word));
+        char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
+        char buffer[2];
+        sprintf(buffer, "%d", strlen(word));
+        char buffer[2];
+        sprintf(buffer2, "%d", wordle.inputs.numRounds - 1);
+        char *fields[4] = {buffer, num_round, buffer2, NULL};
+        char *response = cJSON_Print(get_message("StartRound", contents, fields, 4));
+        send_data(pClient, response);
+
+        wordle.inputs.numRounds--;
+        num_round++;
+    }
 
     return NULL;
 }
@@ -711,7 +731,8 @@ int main(int argc, char *argv[])
             fclose(DFile);
             char fileName[BUFSIZ];
             sprintf(fileName, "../%s", argv[i+1]);
-            // call function that see=lects random word 
+            wordle.inputs.fileName = fileName;
+
         }  
         else if (!strcmp(argv[i], "-dbg")) {
             debugFlag = true;

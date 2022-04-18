@@ -114,8 +114,12 @@ void joinInstanceResult(char *name, char *number, char *result, int sockfd) {
     }
 }
 
-void startGame(char *rounds, char *names[], char *numbers[]) {
+void startGame(char *rounds, char *names[], char *numbers[], int sockfd, int numPlayers) {
     printf("Starting Game\n");
+    //TODO output something to client
+    sleep(1);
+    char *data = recieve_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
 }
 
 int interpret_message(cJSON *message, int sockfd, int numPlayers) {
@@ -166,7 +170,7 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
             numbers[i] =cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Number"));
             i++;
         }
-        startGame(rounds, names, numbers);
+        startGame(rounds, names, numbers, sockfd);
     
     }
     //TODO FIX EVERYTHING BELOW
@@ -176,7 +180,6 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
             char *word_length = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
             char *round = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
             char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
-            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 3));
             char *names[array_size];
             char *numbers[array_size];
             char *scores[array_size];
