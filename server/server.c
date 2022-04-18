@@ -335,11 +335,11 @@ void joinInstance(char *name, char *nonce, struct ClientInfo *pClient) {
     send_data(pClient, response);
 }
 
-void guess(char *name, char *guess) {
-
+void checkGuess(char *name, char *guess, struct ClientInfo *pClient) {
+    printf("%s guessed %s\n", name, guess);
 }
 
-void interpret_message(cJSON *message, struct ClientInfo *pClient) {
+char *interpret_message(cJSON *message, struct ClientInfo *pClient) {
 
     char * message_type = cJSON_GetStringValue(cJSON_GetObjectItem(message, "MessageType"));
 
@@ -347,7 +347,7 @@ void interpret_message(cJSON *message, struct ClientInfo *pClient) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *client = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Client"));
-        join(name, client, pClient);  
+        join(name, client, pClient); 
 
     }
     else if(!strcmp(message_type, "Chat")) {
@@ -362,17 +362,19 @@ void interpret_message(cJSON *message, struct ClientInfo *pClient) {
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *nonce = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Nonce"));
         joinInstance(name, nonce, pClient);
+        return name;
     }
 
     else if(!strcmp(message_type, "Guess")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *guess = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Guess"));
-        //guess(name, guess);
+        checkGuess(name, guess, pClient);
     }
     else {
         //TODO ERROR
     }
+    return "";
 }
 
 void * Thread_Client_Game (void * pData)
@@ -392,7 +394,8 @@ void * Thread_Client_Game (void * pData)
     //receive join instance
     szBuffer = receive_data(pClient);
     //pthread_mutex_lock(&g_BigLock);
-    interpret_message(cJSON_Parse(szBuffer), pClient);
+    char *name = interpret_message(cJSON_Parse(szBuffer), pClient);
+    printf("NAME IS %s\n", name);
     free(szBuffer);
     //pthread_mutex_unlock(&g_BigLock);
 
@@ -416,19 +419,39 @@ void * Thread_Client_Game (void * pData)
         char *word = word_to_guess();
         printf("word: %s with length of %d\n", word, strlen(word));
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
-        char buffer[2];
-        sprintf(buffer, "%d", strlen(word));
-        char buffer2[2];
-        sprintf(buffer2, "%d", num_round);
-        char buffer3[2];
-        sprintf(buffer3, "%d", wordle.inputs.numRounds - 1);
+        char word_length_s[2];
+        sprintf(word_length_s, "%d", strlen(word));
+        char round_s[2];
+        sprintf(round_s, "%d", num_round);
+        char rounds_remaining_s[2];
+        sprintf(rounds_remaining_s, "%d", wordle.inputs.numRounds - 1);
         char *fields[4] = {"", "", "", NULL};
-        fields[0] = buffer;
-        fields[1] = buffer2;
-        fields[2] = buffer3;
-        printf("field 3: %s\n", fields[0]);
+        fields[0] = word_length_s;
+        fields[1] = round_s;
+        fields[2] = rounds_remaining_s;
         char *response = cJSON_Print(get_message("StartRound", contents, fields, 4));
         send_data(pClient, response);
+        sleep(1);
+        int no_winners = 1;
+        int guess_number = 1;
+        while(no_winners) {
+            //prompt for guess
+            char *contents[3] = {"WordLength", "Name", "GuessNumber"};
+            char guess_number_s[2];
+            sprintf(guess_number_s, "%d", guess_number);
+            char *fields[3]  = {"", name, ""};
+            fields[0] = word_length_s;
+            fields[2] = guess_number_s;
+            char *response = cJSON_Print(get_message("PromptForGuess", contents, fields, 3));
+            send_data(pClient, response);
+
+            //await guess
+            char *data = receive_data(pClient);
+            interpret_message(cJSON_Parse(data), pClient);
+            free(data);
+            guess_number++;
+            no_winners = 0;
+        }
 
         wordle.inputs.numRounds--;
         num_round++;
@@ -716,7 +739,7 @@ int main(int argc, char *argv[])
     int numPlayers = 1;
     char *lobbyPort = "41333";
     char *playPort = "41334";
-    int numRounds = 3;
+    int numRounds = 1;
     FILE *DFile;
     DFile = fopen("../terms.txt", "r+");
 

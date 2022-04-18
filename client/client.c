@@ -120,11 +120,34 @@ void startGame(char *rounds, char *names[], char *numbers[], int sockfd, int num
     sleep(1);
     char *data = receive_data(sockfd);
     interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+    free(data);
 }
 
 void startRound(char *word_length, char *round, char *rounds_remaining, char *names[], char *numbers[], char *scores[], int sockfd, int numPlayers) {
     //Alert to user that round is starting
     printf("Round is starting!\n");
+    sleep(1);
+
+    //TODO while loop while there are no winners
+    //receive message prompt
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+    free(data);
+}
+
+void promptForGuess(char *word_length, char *name, char *guess_number, int sockfd, int numPlayers) {
+    printf("Give a guess for a word of length %s: \n", word_length);
+    char guess[100];
+    gets(guess);
+    
+    char *contents[2] = {"Name", "Guess"};
+    char *fields[2] = {name, ""};
+    fields[1] = guess;
+
+    //send guess
+    char *message = cJSON_Print(get_message("Guess", contents, fields, 2));
+    send_data(sockfd, message);
+
 }
 
 int interpret_message(cJSON *message, int sockfd, int numPlayers) {
@@ -199,20 +222,16 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
 
     
     }
-    //TODO FIX EVERYTHING BELOW
     else if(!strcmp(message_type, "PromptForGuess")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-        if(cJSON_GetArraySize(data) == 3) {
-            char *word_length = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
-            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            char *guess_number = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
-            //TODO PROMPTFORGUESS
-        }
-        else {
-            //TODO ERROR
-        }
+
+        char *word_length = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "WordLength"));
+        char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
+        char *guess_number = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "GuessNumber"));
+        promptForGuess(word_length, name, guess_number, sockfd, numPlayers);
     
     }
+    //TODO FIX EVERYTHING BELOW
     else if(!strcmp(message_type, "GuessResponse")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         if(cJSON_GetArraySize(data) == 3) {
