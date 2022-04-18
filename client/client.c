@@ -150,6 +150,39 @@ void promptForGuess(char *word_length, char *name, char *guess_number, int sockf
 
 }
 
+void guessResponse(char *name, char *guess, char *accepted, int sockfd, int numPlayers) {
+    printf("you (%s) guessed: %s and it was accepted?: %s\n", name, guess, accepted);
+
+    sleep(1);
+    //receive guessresult
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+}
+
+void guessResult(char *winner, char *name, char *names[], char *numbers[], char *corrects[], char *receipt_times[], char *results[], int sockfd, int numPlayers) {
+    printf("Guesses are in!");
+
+    //receive either promptforguess if no winner or endround if winner
+    sleep(1);
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+    
+}
+
+void endRound(char *rounds_remaining, char *names[], char *numbers[], char *scores_earned[], char *winners[], int sockfd, int numPlayers) {
+    printf("Round has ended\n");
+
+    sleep(1);
+
+    //receive either endgame or startround
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+}
+
+void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], int sockfd, int numPlayers) {
+    printf("Game over\n");
+}
+
 int interpret_message(cJSON *message, int sockfd, int numPlayers) {
     char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
     if(!strcmp(message_type, "JoinResult")) {
@@ -219,111 +252,85 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
             i++;
         }
         startRound(word_length, round, rounds_remaining, names, numbers, scores, sockfd, numPlayers);
-
-    
     }
+
     else if(!strcmp(message_type, "PromptForGuess")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-
         char *word_length = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "WordLength"));
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *guess_number = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "GuessNumber"));
         promptForGuess(word_length, name, guess_number, sockfd, numPlayers);
-    
     }
-    //TODO FIX EVERYTHING BELOW
+
     else if(!strcmp(message_type, "GuessResponse")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-        if(cJSON_GetArraySize(data) == 3) {
-            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
-            char *guess = cJSON_GetStringValue(cJSON_GetArrayItem(data, 1));
-            char *accepted = cJSON_GetStringValue(cJSON_GetArrayItem(data, 2));
-            //TODO GUESSRESPONSE
-        }
-        else {
-            //TODO ERROR
-        }
-    
+        char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
+        char *guess = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Guess"));
+        char *accepted = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Accepted"));
+        guessResponse(name, guess, accepted, sockfd, numPlayers);
     }
+
     else if(!strcmp(message_type, "GuessResult")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-        if(cJSON_GetArraySize(data) == 2) {
-            char *name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
-            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-            char *names[array_size];
-            char *numbers[array_size];
-            char *corrects[array_size];
-            char *receipt_times[array_size];
-            char *results[array_size];
-            cJSON *entry;
-            int i = 0;
-            cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-                strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
-                strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
-                strcpy(corrects[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Correct")));
-                strcpy(receipt_times[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ReceiptTime")));
-                strcpy(results[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Result")));
-                i++;
-            }
-            //TODO GUESSRESULT
+        char *winner = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Winner"));
+        char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
+        char *names[nunPlayers];
+        char *numbers[numPlayers];
+        char *corrects[numPlayers];
+        char *receipt_times[numPlayers];
+        char *results[numPlayers];
+        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *entry;
+        int i = 0;
+        cJSON_ArrayForEach(entry, playerInfo) {
+            names[i] = cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name"));
+            numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Number"));
+            corrects[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Correct"));
+            receipt_times[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "ReceiptTime"));
+            results[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Result"));
+            i++;
         }
-        else {
-            //TODO ERROR
-        }
-    
+        guessResult(winner, name, names, numbers, corrects, receipt_times, results, sockfd, numPlayers);
     }
 
     else if(!strcmp(message_type, "EndRound")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-        if(cJSON_GetArraySize(data) == 2) {
-            char *rounds_remaining = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
-            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-            char *names[array_size];
-            char *numbers[array_size];
-            char *scores_earned[array_size];
-            char *winners[array_size];
-
-            cJSON *entry;
-            int i = 0;
-            cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-                strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
-                strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
-                strcpy(scores_earned[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "ScoreEarned")));
-                strcpy(winners[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Winner")));
-                i++;
-            }
-            //TODO ENDROUND
+        char *rounds_remaining = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "RoundsRemaining"));
+        char *names[numPlayers];
+        char *numbers[numPlayers];
+        char *scores_earned[numPlayers];
+        char *winners[numPlayers];
+        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *entry;
+        int i = 0;
+        cJSON_ArrayForEach(entry, playerInfo) {
+            names[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Name"));
+            numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Number"));
+            scores_earned[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "ScoreEarned"));
+            winners[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Winner"));
+            i++;
         }
-        else {
-            //TODO ERROR
-        }
-    
+        endRound(rounds_remaining, names, numbers, scores_earned, winners, sockfd, numPlayers);
     }
-    //TODO
+
     else if(!strcmp(message_type, "EndGame")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
-        if(cJSON_GetArraySize(data) == 2) {
-            char *winner_name = cJSON_GetStringValue(cJSON_GetArrayItem(data, 0));
-            int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-            char *names[array_size];
-            char *numbers[array_size];
-            char *scores[array_size];
-
-            cJSON *entry;
-            int i = 0;
-            cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-                strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
-                strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
-                strcpy(scores[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Score")));
-                i++;
-            }
-            //TODO ENDGAME
+        char *winner_name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "WinnerName"));
+        char *names[numPlayers];
+        char *numbers[numPlayers];
+        char *scores[numPlayers];
+        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *entry;
+        int i = 0;
+        cJSON_ArrayForEach(entry, playerInfo) {
+            names[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Name"));
+            numbers[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Number"));
+            scores[i]=  cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Score"));
+            i++;
         }
-        else {
-            //TODO ERROR
-        }
-    
+        endGame(winner_name, names, numbers, scores, sockfd, numPlayers);
     }
+    
     else {
         //TODO ERROR
     }
