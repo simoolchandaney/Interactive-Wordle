@@ -15,6 +15,16 @@
 
 #define BUFFER_MAX 1000
 
+typedef struct Inputs {
+    char *name;
+    char *server;
+    char *lobbyPort;
+    char *gamePort;
+    int nonce;
+} Inputs;
+
+Inputs input;
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
 {
@@ -62,10 +72,14 @@ char *receive_data(int sockfd) {
     return return_val;
 }
 
+int interpret_message(cJSON *message, int sockfd, int numPlayers);
+int connectToLobby(char *player_name, char *server_name, char *lobby_port);
+
 void joinResult(char *name, char *result, int sockfd) {
     if(!strcmp(result, "Yes")) {
+        //receive StartInstance
         char *data = receive_data(sockfd);
-        interpret_message(cJSON_Parse(data));
+        interpret_message(cJSON_Parse(data), sockfd, 0);
         free(data);
     }
     else {
@@ -73,19 +87,38 @@ void joinResult(char *name, char *result, int sockfd) {
     }
 }
 
-int startInstance(char *server, char *port, char *nonce) {
+void startInstance(char *server, char *port, char *nonce, int sockfd) {
     //TODO PASS IN NAME
-    int sockfd = connectToLobby("JACOB", server, port);
+    close(sockfd);
+    sleep(2); //make sure lobby is created before client connects
+    sockfd = connectToLobby(input.name, server, port);
     char *contents[2] = {"Name", "Nonce"};
-    char *fields[2] = {"JACOB", nonce};
+    char *fields[2] = {input.name, nonce};
     //send join instance
     char *message = cJSON_Print(get_message("JoinInstance", contents, fields, 2));
     send_data(sockfd, message);
-    return sockfd;
-
+    //receive joininstanceresult
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, 0);
+    free(data);
 }
 
-int interpret_message(cJSON *message, int sockfd) {
+void joinInstanceResult(char *name, char *number, char *result, int sockfd) {
+    if(!strcmp(result, "Yes")) {
+        //receive start game
+        char *data = receive_data(sockfd);
+        interpret_message(cJSON_Parse(data), sockfd, atoi(number));
+    }
+    else {
+        close(sockfd);
+    }
+}
+
+void startGame(char *rounds, char *names[], char *numbers[]) {
+    printf("Starting Game\n");
+}
+
+int interpret_message(cJSON *message, int sockfd, int numPlayers) {
     char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
     if(!strcmp(message_type, "JoinResult")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
@@ -107,9 +140,7 @@ int interpret_message(cJSON *message, int sockfd) {
             char *server = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Server"));
             char *port = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Port"));
             char *nonce = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Nonce"));
-            //TODO STARTINSTANCE
-            close(sockfd);
-            sockfd = startInstance(server, port, nonce);
+            startInstance(server, port, nonce, sockfd);
     }
 
     else if(!strcmp(message_type, "JoinInstanceResult")) {
@@ -117,33 +148,28 @@ int interpret_message(cJSON *message, int sockfd) {
             char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
             char *number = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Number"));
             char *result = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Result"));
-            //TODO JOININSTANCERESULT
+            joinInstanceResult(name, number, result, sockfd);
     }
 
-    //TODO FIX EVERYTHING BELOW
     else if(!strcmp(message_type, "StartGame")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *rounds = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Rounds"));
         //array size should not be passed
-        int array_size = cJSON_GetArraySize(cJSON_GetArrayItem(data, 1));
-        char *names[array_size];
-        char *numbers[array_size];
 
+        char *names[numPlayers];
+        char *numbers[numPlayers];
+        cJSON * playerInfo = cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo");
         cJSON *entry;
         int i = 0;
-        cJSON_ArrayForEach(entry, cJSON_GetArrayItem(data, 1)) {
-            strcpy(names[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Name")));
-            strcpy(numbers[i], cJSON_GetStringValue(cJSON_GetObjectItem(entry, "Number")));
+        cJSON_ArrayForEach(entry, playerInfo) {
+            names[i] = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Name"));
+            numbers[i] =cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(entry, "Number"));
             i++;
         }
-
-        //TODO JOININSTANCERESULT
-
-
-
-        return sockfd;
+        startGame(rounds, names, numbers);
     
     }
+    //TODO FIX EVERYTHING BELOW
     else if(!strcmp(message_type, "StartRound")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         if(cJSON_GetArraySize(data) == 4) {
@@ -277,9 +303,11 @@ int interpret_message(cJSON *message, int sockfd) {
     else {
         //TODO ERROR
     }
+    return sockfd;
 }
 
 int connectToLobby(char *player_name, char *server_name, char *lobby_port) {
+    printf("in connect to lobby\n");
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_in *h;
@@ -329,24 +357,29 @@ int main(int argc, char *argv[])
     char server_name[BUFSIZ];
     char lobby_port[BUFSIZ];
     char game_port[BUFSIZ];
-    char nonce[BUFSIZ];
+    int nonce;
 
     for(int i = 1; i < argc; i++) {
 
         if(!strcmp(argv[i], "-name")) {
             strcpy(player_name, argv[i+1]);
+            input.name = player_name;
         }
         else if(!strcmp(argv[i], "-server")) {
             strcpy(server_name, argv[i+1]);
+            input.server = server_name;
         }
         else if(!strcmp(argv[i], "-port")) {
             strcpy(lobby_port, argv[i+1]);
+            input.lobbyPort = lobby_port;
         }
         else if(!strcmp(argv[i], "-game")) {
             strcpy(game_port, argv[i+1]);
+            input.gamePort = game_port;
         }
         else if(!strcmp(argv[i], "-nonce")) {
-            strcpy(nonce, argv[i+1]);
+            nonce = atoi(argv[i+1]);
+            input.nonce = nonce;
         }
         else continue;
     }
@@ -356,10 +389,11 @@ int main(int argc, char *argv[])
     char *contents[2] = {"Name", "Client"};
     char *fields[2] = {player_name, "ISJ-C"};
     char *join = cJSON_Print(get_message("Join", contents, fields, 2));
+    //send Join message
     send_data(sockfd, join);
+    //receive joinResult message
     char *data = receive_data(sockfd);
-    //close(sockfd);
-    interpret_message(cJSON_Parse(data), sockfd);
+    sockfd = interpret_message(cJSON_Parse(data), sockfd, 0);
     free(data);
 
     return 0;

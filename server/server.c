@@ -31,20 +31,39 @@ struct ClientInfo
     int  socketClient;
 };
 
-typedef struct Player {
+typedef struct Input {
+    int numPlayers;
+    char *lobbyPort;
+    char *playPort;
+    int numRounds;
+} Input;
+
+typedef struct Game_Player {
     char *name;
     char *client;
-    char *number;
+    int number;
     char *score;
     char *correct;
     char *receipt_time;
-} Player;
+    char *result;
+    char *score_earned;
+    char *winner;
+} Game_Player;
+
+typedef struct Lobby_Player {
+    char *name;
+    char *client;
+} Lobby_Player;
 
 typedef struct Wordle
 {
-    struct Player player_info[4];
+    struct Lobby_Player lobbyPlayers[4];
+    struct Game_Player players[4];
     char *word;
+    int num_in_lobby;
     int num_players;
+    int nonce;
+    struct Input inputs;
 } Wordle;
 
 char *chat_message;
@@ -64,6 +83,26 @@ void *get_in_addr(struct sockaddr *sa) {
         return &(((struct sockaddr_in*)sa)->sin_addr);
     }
     return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+char *get_IP() {
+    char hostbuffer[256];
+    char *IPbuffer;
+    struct hostent *host_entry;
+    int hostname;
+  
+    // To retrieve hostname
+    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+  
+    // To retrieve host information
+    host_entry = gethostbyname(hostbuffer);
+  
+    // To convert an Internet network
+    // address into ASCII string
+    IPbuffer = inet_ntoa(*((struct in_addr*)
+                           host_entry->h_addr_list[0]));
+
+    return IPbuffer;
 }
 
 void send_data(struct ClientInfo *pClient, char *response) {
@@ -87,6 +126,12 @@ char *receive_data(struct ClientInfo *pClient) {
     memcpy(return_val, szBuffer, numBytes);
     printf("received: %s\n", return_val);
     return return_val;
+}
+
+int get_nonce() {
+    int r = rand() % 1000;
+    wordle.nonce = r;
+    return r;
 }
 
 // fucntion that selects random word from text file
@@ -139,7 +184,7 @@ char * word_guess_color_builder(char * guess, char * key) {
     */
 }
 
-cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length, int num_players, char *names[], char *numbers[], char *scores[], char *corrects[], char *receipt_times[], char * results[], char *scores_earned[], char *winners[]) {
+cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
     cJSON *data = cJSON_CreateObject();
@@ -147,13 +192,12 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
     for(int i = 0; i < content_length; i++) {
         if(!strcmp(message_type, "StartGame") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
-            if(! (names && numbers)) {
-                //ERROR
-            }
-            for(int j = 0; j < num_players; j++) {
+            for(int j = 0; j < wordle.num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON_AddStringToObject(item, "Name", names[j]);
-                cJSON_AddStringToObject(item, "Number", numbers[j]);
+                cJSON_AddStringToObject(item, "Name", wordle.players[j].name);
+                char buffer[2];
+                sprintf(buffer, "%d", wordle.players[j].number);
+                cJSON_AddStringToObject(item, "Number", buffer);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -161,14 +205,13 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
         }
         else if(!strcmp(message_type, "StartRound") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
-            if(! (names && numbers && scores)) {
-                //ERROR
-            }
-            for(int j = 0; j < num_players; j++) {
+            for(int j = 0; j < wordle.num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON_AddStringToObject(item, "Name", names[j]);
-                cJSON_AddStringToObject(item, "Number", numbers[j]);
-                cJSON_AddStringToObject(item, "Score", scores[j]);
+                cJSON_AddStringToObject(item, "Name",wordle.players[j].name);
+                char buffer[2];
+                sprintf(buffer, "%d", wordle.players[j].number);
+                cJSON_AddStringToObject(item, "Number", buffer);
+                cJSON_AddStringToObject(item, "Score", wordle.players[j].score);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -177,16 +220,15 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
 
         else if(!strcmp(message_type, "GuessResult") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
-            if(! (names && numbers && corrects && receipt_times && results)) {
-                //ERROR
-            }
-            for(int j = 0; j < num_players; j++) {
+            for(int j = 0; j < wordle.num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON_AddStringToObject(item, "Name", names[j]);
-                cJSON_AddStringToObject(item, "Number", numbers[j]);
-                cJSON_AddStringToObject(item, "Correct", corrects[j]);
-                cJSON_AddStringToObject(item, "ReceiptTime", receipt_times[j]);
-                cJSON_AddStringToObject(item, "Result", results[j]);
+                cJSON_AddStringToObject(item, "Name", wordle.players[j].name);
+                char buffer[2];
+                sprintf(buffer, "%d", wordle.players[j].number);
+                cJSON_AddStringToObject(item, "Number", buffer);
+                cJSON_AddStringToObject(item, "Correct", wordle.players[j].correct);
+                cJSON_AddStringToObject(item, "ReceiptTime", wordle.players[j].receipt_time);
+                cJSON_AddStringToObject(item, "Result", wordle.players[j].result);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -195,15 +237,14 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
 
         else if(!strcmp(message_type, "EndRound") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
-            if(! (names && numbers && scores_earned && winners)) {
-                //ERROR
-            }
-            for(int j = 0; j < num_players; j++) {
+            for(int j = 0; j < wordle.num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON_AddStringToObject(item, "Name", names[j]);
-                cJSON_AddStringToObject(item, "Number", numbers[j]);
-                cJSON_AddStringToObject(item, "ScoreEarned", scores_earned[j]);
-                cJSON_AddStringToObject(item, "Winner", winners[j]);
+                cJSON_AddStringToObject(item, "Name", wordle.players[j].name);
+                char buffer[2];
+                sprintf(buffer, "%d", wordle.players[j].number);
+                cJSON_AddStringToObject(item, "Number", buffer);
+                cJSON_AddStringToObject(item, "ScoreEarned", wordle.players[j].score_earned);
+                cJSON_AddStringToObject(item, "Winner", wordle.players[j].winner);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -212,14 +253,13 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
 
         else if(!strcmp(message_type, "EndGame") && (!strcmp(contents[i], "PlayerInfo"))) {
             cJSON *players = cJSON_CreateArray();
-            if(! (names && numbers && scores)) {
-                //ERROR
-            }
-            for(int j = 0; j < num_players; j++) {
+            for(int j = 0; j < wordle.num_players; j++) {
                 cJSON *item = cJSON_CreateObject();
-                cJSON_AddStringToObject(item, "Name", names[j]);
-                cJSON_AddStringToObject(item, "Number", numbers[j]);
-                cJSON_AddStringToObject(item, "Score", scores[j]);
+                cJSON_AddStringToObject(item, "Name", wordle.players[j].name);
+                char buffer[2];
+                sprintf(buffer, "%d", wordle.players[j].number);
+                cJSON_AddStringToObject(item, "Number", buffer);
+                cJSON_AddStringToObject(item, "Score", wordle.players[j].score);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -237,23 +277,29 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
     return message;
 }
 
-
 void join(char *name, char *client, struct ClientInfo *pClient) {
+    //make sure name is unique
+    int unique  = 1;
+    for(int i = 0; i < wordle.num_in_lobby; i++) {
+        if (!strcmp(name, wordle.lobbyPlayers[i].name)) {
+            unique = 0;
+        }
+    }
     char *fields[2] = {name, ""};
-    wordle.num_players += 1;
-    if(wordle.num_players >= 4) {
+    if(!unique) {
         fields[1] = "No";
     }
     else {
         fields[1] = "Yes";
-        Player player;
+        Lobby_Player player;
         player.name = name;
         player.client = client;
-        wordle.player_info[wordle.num_players] = player;
+        wordle.lobbyPlayers[wordle.num_in_lobby] = player;
+        wordle.num_in_lobby += 1;
     }
 
     char *contents[2] = {"Name", "Result"};
-    char *response = cJSON_Print(get_message("JoinResult", contents, fields, 2, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+    char *response = cJSON_Print(get_message("JoinResult", contents, fields, 2));
     send_data(pClient, response);
 }
 
@@ -261,7 +307,32 @@ void chat(char *name, char *text, struct ClientInfo *pClient) {
 }
 
 void joinInstance(char *name, char *nonce, struct ClientInfo *pClient) {
+    //check if name and nonce is valid
+    int unique = 1;
+    for(int i =0; i < wordle.num_players; i++) {
+        if(!strcmp(name, wordle.players[i].name)) {
+            unique = 0;
+        }
+    }
 
+    char buffer[2];
+    sprintf(buffer, "%d", wordle.num_in_lobby);
+    char *fields[3] = {name, buffer, ""};
+    if(!unique || atoi(nonce) != wordle.nonce) {
+        fields[2] = "No";
+    }
+    else {
+        fields[2] = "Yes";
+        Game_Player player;
+        player.name = name;
+        player.number = wordle.num_players + 1;
+        wordle.players[wordle.num_players] = player;
+        wordle.num_players += 1;
+    }
+
+    char *contents[3] = {"Name", "Number", "Result"};
+    char *response = cJSON_Print(get_message("JoinInstanceResult", contents, fields, 3));
+    send_data(pClient, response);
 }
 
 void guess(char *name, char *guess) {
@@ -304,6 +375,145 @@ void interpret_message(cJSON *message, struct ClientInfo *pClient) {
     }
 }
 
+void * Thread_Client_Game (void * pData)
+{
+    
+    struct ClientInfo * pClient;
+    struct ClientInfo   threadClient;
+    
+    char *szBuffer;
+    
+    // Typecast to what we need 
+    pClient = (struct ClientInfo *) pData;
+    
+    // Copy it over to a local instance 
+    threadClient = *pClient;
+
+    //receive join instance
+    szBuffer = receive_data(pClient);
+    //pthread_mutex_lock(&g_BigLock);
+    interpret_message(cJSON_Parse(szBuffer), pClient);
+    free(szBuffer);
+    //pthread_mutex_unlock(&g_BigLock);
+
+    //loop until all players have joined
+    while(wordle.num_players < 1) {
+        printf("looping");
+    }
+
+    //send start game message
+    char *contents[2] = {"Rounds", "PlayerInfo"};
+    char *fields[2] = {"3", NULL};
+
+    char *response = cJSON_Print(get_message("StartGame", contents, fields, 2));
+    send_data(pClient, response);
+
+    return NULL;
+}
+
+void Game_Lobby(char *nGamePort) {
+    // Adapting this from Beej's Guide
+    
+    int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+    struct addrinfo hints, *servinfo, *p;
+    struct sockaddr_storage their_addr; // connector's address information
+    socklen_t sin_size;
+    struct sigaction sa;
+    int yes=1;
+    char s[INET6_ADDRSTRLEN];
+    int rv;
+    
+    struct ClientInfo theClientInfo;
+    int       nClientCount = 0; 
+    wordle.num_players = 0;
+
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP
+
+    if ((rv = getaddrinfo(NULL, nGamePort, &hints, &servinfo)) != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        return;
+    }
+
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next) {
+        if ((sockfd = socket(p->ai_family, p->ai_socktype,
+                p->ai_protocol)) == -1) {
+            perror("server: socket");
+            continue;
+        }
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                sizeof(int)) == -1) {
+            perror("setsockopt");
+            exit(1);
+        }
+
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sockfd);
+            perror("server: bind");
+            continue;
+        }
+
+        break;
+    }
+
+    freeaddrinfo(servinfo); // all done with this structure
+
+    if (p == NULL)  {
+        fprintf(stderr, "server: failed to bind\n");
+        exit(1);
+    }
+
+    if (listen(sockfd, BACKLOG) == -1) {
+        perror("listen");
+        exit(1);
+    }
+
+    printf("server: waiting for connections...\n");
+
+    g_bKeepLooping = 1;
+    while(g_bKeepLooping) 
+    {  
+        sin_size = sizeof their_addr;       
+        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
+        
+        if (new_fd == -1) 
+        {
+            perror("accept");
+            continue;
+        }
+
+        // Simple bit of code but this can be helpful to detect successful connections 
+         
+         
+        inet_ntop(their_addr.ss_family,
+            get_in_addr((struct sockaddr *)&their_addr),
+s, sizeof s);
+        printf("server: got connection from %s\n", s);
+
+        // Print out this client information 
+        sprintf(theClientInfo.szIdentifier, "%s-%d", s, nClientCount);
+        theClientInfo.socketClient = new_fd;
+        nClientCount++;
+
+        // From OS: Three Easy Pieces 
+        //   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf 
+        pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client_Game, &theClientInfo);
+        
+        /*
+        // Bail out when the third client connects after sleeping a bit
+        if(nClientCount == 1)
+        {
+            g_bKeepLooping = 0;
+            sleep(15);
+        }*/       
+    }
+    close(sockfd);
+}
+
 void * Thread_Client (void * pData)
 {
     
@@ -317,16 +527,30 @@ void * Thread_Client (void * pData)
     
     // Copy it over to a local instance 
     threadClient = *pClient;
-    //szBuffer = receive_data(pClient);
-    //interpret_message(cJSON_Parse(szBuffer), pClient);
-    //free(szBuffer);
-    
+
+    //get player info
+    szBuffer = receive_data(pClient);
+    pthread_mutex_lock(&g_BigLock);
+    //interpret Join message and send JoinResult back
+    interpret_message(cJSON_Parse(szBuffer), pClient);
+    free(szBuffer);
+    pthread_mutex_unlock(&g_BigLock);
+
+    //once all players are in (1) for now, send startInstance to all
+     char *contents[3] = {"Server", "Port", "Nonce"};
+    char buffer[5];
+    sprintf(buffer, "%d", get_nonce());
+    char *IP = get_IP();
+    char *fields[3] = {IP, wordle.inputs.playPort, buffer};
+
+    cJSON *message = get_message("StartInstance", contents, fields, 3);
+    sleep(1); //make sure message sends seperately
+    send_data(pClient, cJSON_Print(message));
+    Game_Lobby(wordle.inputs.playPort);
+
+    /*
     while(g_bKeepLooping)
     {
-        printf("looping\n");
-        if(wordle.num_players == 1) {
-            printf("start the game!\n");
-        }
         szBuffer = receive_data(pClient);
 
         // Debug / show what we got3
@@ -346,7 +570,14 @@ void * Thread_Client (void * pData)
         // This is a pretty good time to unlock a mutex
         pthread_mutex_unlock(&g_BigLock);
     }
-    
+
+    char *contents[3] = {"Server", "Port", "Nonce"};
+    //TODO get these fields as variables
+    char *fields[3] = {"129.74.152.124", "41334", "1234"};
+
+    char *message = get_message("StartInstance", contents, fields, 3);
+    send_data(pClient, cJSON_Print(message));
+    */
     return NULL;
 }
 
@@ -443,20 +674,22 @@ s, sizeof s);
         pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
         
         // Bail out when the third client connects after sleeping a bit
-        if(nClientCount == 3 ||wordle.num_players == 1)
+        if(nClientCount == 1)
         {
             g_bKeepLooping = 0;
             sleep(15);
         }       
     }
+    close(sockfd);
     
 }
 
 int main(int argc, char *argv[]) 
 {   
+    srand(time(NULL));
     int numPlayers = 1;
-    int lobbyPort = 8900;
-    int playPorts = 2;
+    char *lobbyPort = "41333";
+    char *playPort = "41334";
     int numRounds = 3;
     FILE *DFile;
     DFile = fopen("../terms.txt", "r+");
@@ -466,10 +699,10 @@ int main(int argc, char *argv[])
             numPlayers = atoi(argv[i+1]);
         }
         else if (!strcmp(argv[i], "-lp")) {
-            lobbyPort = atoi(argv[i+1]);
+            lobbyPort = argv[i+1];
         }
         else if (!strcmp(argv[i], "-pp")) {
-            playPorts = atoi(argv[i+1]);
+            playPort = argv[i+1];
         }
         else if (!strcmp(argv[i], "-nr")) {
             numRounds = atoi(argv[i+1]);
@@ -488,8 +721,12 @@ int main(int argc, char *argv[])
         }
     }
     pthread_mutex_init(&g_BigLock, NULL);
-    wordle.num_players = -1;
-    Server_Lobby("41333");
+    wordle.num_in_lobby = 0;
+    wordle.inputs.numPlayers = numPlayers;
+    wordle.inputs.lobbyPort = lobbyPort;
+    wordle.inputs.playPort = playPort;
+    wordle.inputs.numRounds = numRounds;
+    Server_Lobby(wordle.inputs.lobbyPort);
 
     printf("Sleeping before exiting\n");
     sleep(15);
