@@ -418,9 +418,15 @@ void * Thread_Client_Game (void * pData)
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
         char buffer[2];
         sprintf(buffer, "%d", strlen(word));
-        char buffer[2];
-        sprintf(buffer2, "%d", wordle.inputs.numRounds - 1);
-        char *fields[4] = {buffer, num_round, buffer2, NULL};
+        char buffer2[2];
+        sprintf(buffer2, "%d", num_round);
+        char buffer3[2];
+        sprintf(buffer3, "%d", wordle.inputs.numRounds - 1);
+        char *fields[4] = {"", "", "", NULL};
+        fields[0] = buffer;
+        fields[1] = buffer2;
+        fields[2] = buffer3;
+        printf("field 3: %s\n", fields[0]);
         char *response = cJSON_Print(get_message("StartRound", contents, fields, 4));
         send_data(pClient, response);
 
