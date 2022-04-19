@@ -87,6 +87,10 @@ void joinResult(char *name, char *result, int sockfd) {
     }
 }
 
+void chat(char *name, char *text, int sockfd) {
+    //TODO chat
+    return;
+}
 void startInstance(char *server, char *port, char *nonce, int sockfd) {
     //TODO PASS IN NAME
     close(sockfd);
@@ -148,6 +152,11 @@ void promptForGuess(char *word_length, char *name, char *guess_number, int sockf
     char *message = cJSON_Print(get_message("Guess", contents, fields, 2));
     send_data(sockfd, message);
 
+    sleep(1);
+    //receive guessresponse
+    char *data = receive_data(sockfd);
+    interpret_message(cJSON_Parse(data), sockfd, numPlayers);
+
 }
 
 void guessResponse(char *name, char *guess, char *accepted, int sockfd, int numPlayers) {
@@ -198,6 +207,7 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
             char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
             char *text = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Text"));
             //TODO CHAT
+            chat(name, text, sockfd);
     }
 
     else if(!strcmp(message_type, "StartInstance")) {
@@ -274,12 +284,12 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *winner = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Winner"));
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
-        char *names[nunPlayers];
+        char *names[numPlayers];
         char *numbers[numPlayers];
         char *corrects[numPlayers];
         char *receipt_times[numPlayers];
         char *results[numPlayers];
-        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *playerInfo = cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo");
         cJSON *entry;
         int i = 0;
         cJSON_ArrayForEach(entry, playerInfo) {
@@ -300,7 +310,7 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
         char *numbers[numPlayers];
         char *scores_earned[numPlayers];
         char *winners[numPlayers];
-        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *playerInfo = cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo");
         cJSON *entry;
         int i = 0;
         cJSON_ArrayForEach(entry, playerInfo) {
@@ -319,7 +329,7 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
         char *names[numPlayers];
         char *numbers[numPlayers];
         char *scores[numPlayers];
-        cJSON *playerInfo = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo"));
+        cJSON *playerInfo = cJSON_GetObjectItemCaseSensitive(data, "PlayerInfo");
         cJSON *entry;
         int i = 0;
         cJSON_ArrayForEach(entry, playerInfo) {

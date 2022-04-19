@@ -43,6 +43,7 @@ typedef struct Game_Player {
     char *name;
     char *client;
     int number;
+    char *guess;
     char *score;
     char *correct;
     char *receipt_time;
@@ -64,6 +65,7 @@ typedef struct Wordle
     int num_in_lobby;
     int num_players;
     int nonce;
+    char *winner;
     struct Input inputs;
 } Wordle;
 
@@ -160,6 +162,7 @@ char * word_to_guess() {
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
+    return "";
     /*char array [strlen(guess)];
     for (int l = 0; l < sizeof(array); l++) {
         strcpy(array[l], "GREY"); // grey
@@ -337,6 +340,26 @@ void joinInstance(char *name, char *nonce, struct ClientInfo *pClient) {
 
 void checkGuess(char *name, char *guess, struct ClientInfo *pClient) {
     printf("%s guessed %s\n", name, guess);
+    //send guessresponse
+
+    //todo check if word is correct and update correct
+    for(int i = 0; i < wordle.num_players; i++) {
+        if(!strcmp(wordle.players[i].name, name)) {
+            wordle.players[i].guess = guess;
+            //TODO if(correct word) -> set correct field
+            //TOOD if(correct word) -> set wordle.winner
+            //TODO set receipt time
+            //TODO set result string
+        }
+    }
+
+    //todo change accepted based on something?
+    char *contents[3] = {"Name", "Guess", "Accepted"};
+    char *fields[3] = {name, guess, "Yes"};
+    char *response = cJSON_Print(get_message("GuessResponse", contents, fields, 3));
+    send_data(pClient, response);
+
+
 }
 
 char *interpret_message(cJSON *message, struct ClientInfo *pClient) {
@@ -449,6 +472,22 @@ void * Thread_Client_Game (void * pData)
             char *data = receive_data(pClient);
             interpret_message(cJSON_Parse(data), pClient);
             free(data);
+
+            sleep(1);
+            //TODO check if all guesses are received
+            //send guess result
+            char *contents2[2] = {"Winner", "PlayerInfo"};
+            char *fields2[2] = {wordle.winner, NULL};
+            response = cJSON_Print(get_message("GuessResult", contents2, fields2, 2));
+            send_data(pClient, response);
+
+            //TODO if there is a winner end round
+            sleep(1);
+            char *contents3[2] = {"RoundsRemaining", "PlayerInfo"};
+            char *fields3[2] = {rounds_remaining_s, NULL};
+            response = cJSON_Print(get_message("EndRound", contents3, fields3, 2));
+            send_data(pClient, response);
+
             guess_number++;
             no_winners = 0;
         }
@@ -456,6 +495,15 @@ void * Thread_Client_Game (void * pData)
         wordle.inputs.numRounds--;
         num_round++;
     }
+
+    //send end game since done with every round
+    sleep(1);
+    char *contents4[2] = {"WinnerName", "PlayerInfo"};
+    char *winner_name;
+    //TODO get winner_name
+    char *fields4[2] = {"Jacob", NULL};
+    response = cJSON_Print(get_message("EndGame", contents4, fields4, 2));
+    send_data(pClient, response);
 
     return NULL;
 }
