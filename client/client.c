@@ -156,7 +156,7 @@ void startRound(char *word_length, char *round, char *rounds_remaining, char *na
 void promptForGuess(char *word_length, char *name, char *guess_number, int sockfd, int numPlayers) {
     printf("Give a guess for a word of length %s: \n", word_length);
     char guess[100];
-    gets(guess);
+    scanf("%s", guess);
     
     char *contents[2] = {"Name", "Guess"};
     char *fields[2] = {name, ""};
@@ -365,7 +365,7 @@ int connectToLobby(char *player_name, char *server_name, char *lobby_port) {
     printf("in connect to lobby\n");
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_in *h;
+    //struct sockaddr_in *h;
     int rv;
     char s[INET6_ADDRSTRLEN];
 

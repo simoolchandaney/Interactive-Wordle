@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <stdbool.h>
 #include "../cJSON.h"
-#include "sys/time.h"
 
 bool debugFlag = false;
 
@@ -74,7 +73,6 @@ typedef struct Wordle
     struct Input inputs;
 } Wordle;
 
-
 Wordle wordle;
 
 #define BACKLOG 10   // how many pending connections queue will hold
@@ -96,10 +94,10 @@ char *get_IP() {
     char hostbuffer[256];
     char *IPbuffer;
     struct hostent *host_entry;
-    int hostname;
+
   
     // To retrieve hostname
-    hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+    gethostname(hostbuffer, sizeof(hostbuffer));
   
     // To retrieve host information
     host_entry = gethostbyname(hostbuffer);
@@ -111,6 +109,7 @@ char *get_IP() {
 
     return IPbuffer;
 }
+
 
 void send_data(struct ClientInfo threadClient, char *response) {
     printf("sending to %d: %s\n", threadClient.socketClient, response);
@@ -143,7 +142,7 @@ int get_nonce() {
 
 // fucntion that selects random word from text file
 char * word_to_guess() {
-    //return "wordle";
+    return "sample";
     int c;
     int wordCount = 0;
     FILE *file_handle = fopen (wordle.inputs.fileName, "r");
@@ -187,6 +186,7 @@ char * word_guess_color_builder(char * guess, char * key) {
     free(letters);
     return letters;
 }
+
 
 int check_profanity(char *guess) {
     char *profanity[] = {"fuck", "shit", "bitch", "damn", "pussy", "penis", "dick", "cock", "bastard", "asshole"};
@@ -354,34 +354,16 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
 
 void checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
     printf("%s guessed %s\n", name, guess);
-    //TODO send guessresponse
+    //send guessresponse
 
     //todo check if word is correct and update correct
     for(int i = 0; i < wordle.num_players; i++) {
         if(!strcmp(wordle.players[i].name, name)) {
-
             wordle.players[i].guess = guess;
-
-            // if profanity is found, print warning
-            check_profanity(guess);
-
-            //if(correct word) -> set correct field
-            //if(correct word) -> set wordle.winner
-            if(!strcmp(guess, wordle.word)) {
-
-                wordle.players[i].correct = "yes";
-                wordle.winner = wordle.players[i].name;
-            }
-
-            // set receipt time
-            struct timeval tv;
-            gettimeofday(&tv, NULL);
-            wordle.players[i].receipt_time = (char *) tv.tv_sec;
-
-            // set result string - string containing BYG
-            char *colored_word = word_guess_color_builder(guess, wordle.word);
-            printf(colored_word);
-
+            //TODO if(correct word) -> set correct field
+            //TOOD if(correct word) -> set wordle.winner
+            //TODO set receipt time
+            //TODO set result string
         }
     }
 
@@ -390,7 +372,6 @@ void checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
     char *fields[3] = {name, guess, "Yes"};
     char *response = cJSON_Print(get_message("GuessResponse", contents, fields, 3));
     send_data(threadClient, response);
-
 
 }
 
@@ -477,14 +458,14 @@ void * Thread_Client_Game (void * pData)
     int rounds_remaining = wordle.inputs.numRounds;
     while(rounds_remaining > 0) {
         char *word = word_to_guess();
-        printf("word: %s with length of %d\n", word, strlen(word));
+        printf("word: %s with length of %d\n", word, (int)strlen(word));
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
         char word_length_s[2];
-        sprintf(word_length_s, "%d", strlen(word));
+        sprintf(word_length_s, "%d", (int)strlen(word));
         char round_s[2];
         sprintf(round_s, "%d", num_round);
         char rounds_remaining_s[2];
-        sprintf(rounds_remaining_s, "%d", wordle.inputs.numRounds - 1);
+        sprintf(rounds_remaining_s, "%d", (int)wordle.inputs.numRounds - 1);
         char *fields[4] = {"", "", "", NULL};
         fields[0] = word_length_s;
         fields[1] = round_s;
@@ -494,7 +475,7 @@ void * Thread_Client_Game (void * pData)
         wordle.num_guessed = 0;
         pthread_mutex_unlock(&g_BigLock);
         sleep(2);
-        int no_winners = 1;
+        //int no_winners = 1;
         int guess_number = 1;
 
         //prompt for guess
@@ -556,7 +537,7 @@ void * Thread_Client_Game (void * pData)
     pthread_mutex_lock(&g_BigLock);
     sleep(1);
     char *contents4[2] = {"WinnerName", "PlayerInfo"};
-    char *winner_name;
+    //char *winner_name;
     //TODO get winner_name
     char *fields4[2] = {"Jacob", NULL};
     response = cJSON_Print(get_message("EndGame", contents4, fields4, 2));
@@ -573,7 +554,7 @@ void Game_Lobby(char *nGamePort) {
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
-    struct sigaction sa;
+    //struct sigaction sa;
     int yes=1;
     char s[INET6_ADDRSTRLEN];
     int rv;
@@ -626,7 +607,6 @@ void Game_Lobby(char *nGamePort) {
     }
 
     printf("server: waiting for connections...\n");
-
 
     while(1) 
     {  
@@ -743,7 +723,6 @@ void * Thread_Client (void * pData)
         pthread_mutex_unlock(&g_BigLock); 
     }  
 
-
     return NULL;
 }
 
@@ -756,7 +735,7 @@ void Server_Lobby (char *nLobbyPort)
     struct addrinfo hints, *servinfo, *p;
     struct sockaddr_storage their_addr; // connector's address information
     socklen_t sin_size;
-    struct sigaction sa;
+    //struct sigaction sa;
     int yes=1;
     char s[INET6_ADDRSTRLEN];
     int rv;
@@ -862,7 +841,7 @@ int main(int argc, char *argv[]) {
     int numRounds = 2;
     FILE *DFile;
     DFile = fopen("../terms.txt", "r+");
-    char fileName[BUFSIZ] = "terms.txt";
+    char fileName[BUFSIZ] = "../terms.txt";
 
     for (int i = 1; i < argc; i+=2) {
         if (!strcmp(argv[i], "-np")) {
@@ -910,3 +889,4 @@ int main(int argc, char *argv[]) {
     fclose(DFile);
     return 0;
 }   
+
