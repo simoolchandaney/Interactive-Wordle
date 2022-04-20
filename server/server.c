@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include "../cJSON.h"
+#include "sys/time.h"
 
 bool debugFlag = false;
 
@@ -153,7 +154,7 @@ char * word_to_guess() {
         fscanf (file_handle, "%s", words[i]); 
     }
     int r = rand() % wordCount;
-    char * result;
+    char *result = NULL;
     strcpy(result, words[r]);
     for (i = 0; i < wordCount; ++i) {
         free (words[i]); 
@@ -163,7 +164,10 @@ char * word_to_guess() {
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
+<<<<<<< HEAD
+=======
     //return "";
+>>>>>>> 3ba660c477dcdb6eb5121bb09f2601f6786b0733
     char *letters = (char*) malloc(strlen(guess)*sizeof(char));
     for (int l = 0; l < strlen(guess); l++) {
         letters[l] = 'B'; // grey
@@ -182,6 +186,24 @@ char * word_guess_color_builder(char * guess, char * key) {
     }
     free(letters);
     return letters;
+<<<<<<< HEAD
+}
+
+int check_profanity(char *guess) {
+    char *profanity[] = {"fuck", "shit", "bitch", "damn", "pussy", "penis", "dick", "cock", "bastard", "asshole"};
+    int i = 0;
+
+    while(profanity[i]) {
+
+        if(!strcmp(profanity[i], guess)) {
+            return 1;
+        }
+
+        i++;
+    }
+    return 0;
+=======
+>>>>>>> 3ba660c477dcdb6eb5121bb09f2601f6786b0733
 }
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
@@ -337,16 +359,34 @@ void joinInstance(char *name, char *nonce, struct ClientInfo *pClient) {
 
 void checkGuess(char *name, char *guess, struct ClientInfo *pClient) {
     printf("%s guessed %s\n", name, guess);
-    //send guessresponse
+    //TODO send guessresponse
 
     //todo check if word is correct and update correct
     for(int i = 0; i < wordle.num_players; i++) {
         if(!strcmp(wordle.players[i].name, name)) {
+
             wordle.players[i].guess = guess;
-            //TODO if(correct word) -> set correct field
-            //TOOD if(correct word) -> set wordle.winner
-            //TODO set receipt time
-            //TODO set result string
+
+            // if profanity is found, print warning
+            check_profanity(guess);
+
+            //if(correct word) -> set correct field
+            //if(correct word) -> set wordle.winner
+            if(!strcmp(guess, wordle.word)) {
+
+                wordle.players[i].correct = "yes";
+                wordle.winner = wordle.players[i].name;
+            }
+
+            // set receipt time
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+            wordle.players[i].receipt_time = (char *) tv.tv_sec;
+
+            // set result string - string containing BYG
+            char *colored_word = word_guess_color_builder(guess, wordle.word);
+            printf(colored_word);
+
         }
     }
 
@@ -646,7 +686,6 @@ void * Thread_Client (void * pData)
     while(g_bKeepLooping)
     {
         szBuffer = receive_data(pClient);
-
         // Debug / show what we got3
         //printf("Received a message of %d bytes from Client %s\n", numBytes, pClient->szIdentifier);
         //printf("   Message: %s\n", szBuffer);
@@ -664,11 +703,9 @@ void * Thread_Client (void * pData)
         // This is a pretty good time to unlock a mutex
         pthread_mutex_unlock(&g_BigLock);
     }
-
     char *contents[3] = {"Server", "Port", "Nonce"};
     //TODO get these fields as variables
     char *fields[3] = {"129.74.152.124", "41334", "1234"};
-
     char *message = get_message("StartInstance", contents, fields, 3);
     send_data(pClient, cJSON_Print(message));
     */
