@@ -72,17 +72,31 @@ char *receive_data(int sockfd) {
     return return_val;
 }
 
+void sendJoin(int sockfd) {
+    char *contents[2] = {"Name", "Client"};
+    char *fields[2] = {input.name, "ISJ-C"};
+    char *join = cJSON_Print(get_message("Join", contents, fields, 2));
+    //send Join message
+    send_data(sockfd, join);
+}
+
 int interpret_message(cJSON *message, int sockfd, int numPlayers);
 int connectToLobby(char *player_name, char *server_name, char *lobby_port);
 
 void joinResult(char *name, char *result, int sockfd) {
     if(!strcmp(result, "Yes")) {
         //receive StartInstance
+        sleep(1);
         char *data = receive_data(sockfd);
         interpret_message(cJSON_Parse(data), sockfd, 0);
         free(data);
     }
     else {
+        printf("Name is invalid. Please input a new name: \n");
+        char name[100];
+        scanf("%s", name);
+        input.name = name;
+        sendJoin(sockfd);
         close(sockfd);
     }
 }
@@ -427,11 +441,8 @@ int main(int argc, char *argv[])
     
     int sockfd = connectToLobby(player_name, server_name, lobby_port);
     
-    char *contents[2] = {"Name", "Client"};
-    char *fields[2] = {player_name, "ISJ-C"};
-    char *join = cJSON_Print(get_message("Join", contents, fields, 2));
-    //send Join message
-    send_data(sockfd, join);
+
+    sendJoin(sockfd);
     //receive joinResult message
     char *data = receive_data(sockfd);
     sockfd = interpret_message(cJSON_Parse(data), sockfd, 0);
