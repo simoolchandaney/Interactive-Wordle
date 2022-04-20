@@ -139,17 +139,17 @@ int get_nonce() {
 
 // fucntion that selects random word from text file
 char * word_to_guess() {
-    return "wordle";
-    /*int c;
+    //return "wordle";
+    int c;
     int wordCount = 0;
     FILE *file_handle = fopen (wordle.inputs.fileName, "r");
     while ((c = fgetc(file_handle)) != EOF){
        wordCount++; 
     }
     int i;
-    char words[wordCount];
+    char **words = (char**) calloc(wordCount, sizeof(char*));
     for (i = 0; i < wordCount; i++) {
-        words[i] = malloc(11);
+        words[i] = (char*) calloc(11, sizeof(char));
         fscanf (file_handle, "%s", words[i]); 
     }
     int r = rand() % wordCount;
@@ -158,33 +158,30 @@ char * word_to_guess() {
     for (i = 0; i < wordCount; ++i) {
         free (words[i]); 
     }
-    return result;*/
+    free(words);
+    return result;
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
-    return "";
-    /*char array [strlen(guess)];
-    for (int l = 0; l < sizeof(array); l++) {
-        strcpy(array[l], "GREY"); // grey
+    //return "";
+    char *letters = (char*) malloc(strlen(guess)*sizeof(char));
+    for (int l = 0; l < strlen(guess); l++) {
+        letters[l] = 'B'; // grey
     }
     for (int i = 0; i < strlen(guess); i++) {
         for (int j = 0; j < strlen(key); j++) {
             if (guess[i] == key[j]) {
-                strcpy(array[i], "YELLOW"); // yellow 
+                letters[i] = 'Y'; // yellow 
             }
         }
     }
     for (int k = 0; k < strlen(guess); k++) {
         if (guess[k] == key[k]) {
-            strcpy(array[k], "GREEN"); // green 
+            letters[k] = 'G'; // green 
         }
     }
-    char * result
-    for (int m = 0; m < strlen(guess); m++) {
-        sprintf(result, "%c - %s ", guess[m], array[m]) 
-    }
-    return result;
-    */
+    free(letters);
+    return letters;
 }
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
