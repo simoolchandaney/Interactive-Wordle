@@ -508,8 +508,11 @@ char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
         return checkGuess(name, guess, threadClient);
     }
     else {
-        //TODO ERROR
+        //invalid json, ignore
+        char *message = receive_data(threadClient);
+        interpret_message(cJSON_Parse(message), threadClient);
     }
+
     return "";
 }
 
@@ -645,10 +648,15 @@ void * Thread_Game (void * pData)
     //send end game since done with every round
     pthread_mutex_lock(&g_BigLock);
     sleep(1);
+    int max_score = 0;
+    for(int i = 0; i < wordle.inputs.numPlayers; i++) {
+        if(wordle.players[i].score >= max_score) {
+            max_score = wordle.players[i].score;
+            wordle.winner_name = wordle.players[i].name;
+        }
+    }
     char *contents4[2] = {"WinnerName", "PlayerInfo"};
-    //char *winner_name;
-    //TODO get winner_name
-    char *fields4[2] = {"Jacob", NULL};
+    char *fields4[2] = {wordle.winner_name, NULL};
     response = cJSON_Print(get_message("EndGame", contents4, fields4, 2));
     send_data(threadClient, response);
     wordle.game_over = 1;

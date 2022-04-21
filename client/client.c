@@ -437,9 +437,6 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
         endGame(winner_name, names, numbers, scores, sockfd, numPlayers);
     }
     
-    else {
-        //TODO ERROR
-    }
     return sockfd;
 }
 
