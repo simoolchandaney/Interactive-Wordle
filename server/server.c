@@ -189,15 +189,13 @@ int score_calc(char *color_word) {
     int total = 0;
     bool all_correct = true;
 
-    printf(color_word);
+    printf("%s\n", color_word);
     for(int i = 0; i < strlen(color_word); i++) {
-    
 
         if(color_word[i] == 'G') {
             total+=5;
         }
         else if(color_word[i] == 'Y') {
-            printf("here\n");
             total+=3;
             all_correct = false;
         }
@@ -206,8 +204,9 @@ int score_calc(char *color_word) {
         }
     }
 
-    if(all_correct) total = 1000;
-
+    if(all_correct) {
+        total += 5;
+    }
     return total;
 }
 
@@ -215,8 +214,8 @@ int score_calc(char *color_word) {
 char * word_guess_color_builder(char * guess, char * key) {
     //TODO FIX
     //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
-    static char letters[BUFSIZ];
-    strcpy(letters, "");
+    char letters[BUFSIZ];
+
     int l, i, j, k; 
     for (l = 0; l < strlen(guess); l++) {
         letters[l] = 'B'; // grey
@@ -234,7 +233,8 @@ char * word_guess_color_builder(char * guess, char * key) {
         }
     }
     //free(letters);
-    return (char *) letters;
+    char *str = letters;
+    return str;
 }
 
 
