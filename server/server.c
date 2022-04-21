@@ -50,11 +50,11 @@ typedef struct Game_Player {
     char *client;
     int number;
     char *guess;
-    char *score;
+    int score;
     char *correct;
     char *receipt_time;
     char *result;
-    char *score_earned;
+    int  score_earned;
     char *winner;
 } Game_Player;
 
@@ -184,6 +184,34 @@ char * word_to_guess() {
     return word;
 }
 
+int score_calc(char *color_word) {
+
+    int total = 0;
+    bool all_correct = true;
+
+    printf(color_word);
+    for(int i = 0; i < strlen(color_word); i++) {
+    
+
+        if(color_word[i] == 'G') {
+            total+=5;
+        }
+        else if(color_word[i] == 'Y') {
+            printf("here\n");
+            total+=3;
+            all_correct = false;
+        }
+        else {
+            all_correct = false;
+        }
+    }
+
+    if(all_correct) total = 1000;
+
+    return total;
+}
+
+
 char * word_guess_color_builder(char * guess, char * key) {
     //TODO FIX
     //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
@@ -266,7 +294,9 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
                 char buffer[2];
                 sprintf(buffer, "%d", wordle.players[j].number);
                 cJSON_AddStringToObject(item, "Number", buffer);
-                cJSON_AddStringToObject(item, "Score", wordle.players[j].score);
+                char buffer2[2];
+                sprintf(buffer2, "%d", wordle.players[j].score);
+                cJSON_AddStringToObject(item, "Score", buffer2);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -298,7 +328,9 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
                 char buffer[2];
                 sprintf(buffer, "%d", wordle.players[j].number);
                 cJSON_AddStringToObject(item, "Number", buffer);
-                cJSON_AddStringToObject(item, "ScoreEarned", wordle.players[j].score_earned);
+                char buffer2[2];
+                sprintf(buffer2, "%d", wordle.players[j].score_earned);
+                cJSON_AddStringToObject(item, "ScoreEarned", buffer2);
                 cJSON_AddStringToObject(item, "Winner", wordle.players[j].winner);
                 cJSON_AddItemToArray(players, item);
             }
@@ -314,7 +346,9 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
                 char buffer[2];
                 sprintf(buffer, "%d", wordle.players[j].number);
                 cJSON_AddStringToObject(item, "Number", buffer);
-                cJSON_AddStringToObject(item, "Score", wordle.players[j].score);
+                char buffer2[2];
+                sprintf(buffer2, "%d", wordle.players[j].score);
+                cJSON_AddStringToObject(item, "Score", buffer2);
                 cJSON_AddItemToArray(players, item);
             }
 
@@ -390,6 +424,8 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
         Game_Player player;
         player.name = name;
         player.number = wordle.num_players + 1;
+        player.score = 0;
+        player.score_earned = 0;
         wordle.players[wordle.num_players] = player;
         wordle.num_players += 1;
     }
@@ -425,10 +461,11 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
             utcTime = (struct time *) gmtime(&tmi);
             char time_buff[100];
             snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
-            //TODO change below
             //printf("time: %s\n", time_buff);
             strcpy(wordle.players[i].receipt_time, time_buff);
             wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
+            wordle.players[i].score_earned = score_calc(wordle.players[i].result);
+            wordle.players[i].score+= wordle.players[i].score_earned;
             break;
         }
     }
@@ -594,9 +631,7 @@ void * Thread_Game (void * pData)
            strcpy(rounds_remaining_s, "0");
         }
         char *contents3[2] = {"RoundsRemaining", "PlayerInfo"};
-        char rounds_remaining_s_2[2];
-        sprintf(rounds_remaining_s_2, "%d", rounds_remaining);
-        char *fields3[2] = {rounds_remaining_s_2, NULL};
+        char *fields3[2] = {rounds_remaining_s, NULL};
         response = cJSON_Print(get_message("EndRound", contents3, fields3, 2));
         send_data(threadClient, response);
         pthread_mutex_unlock(&g_BigLock);
@@ -770,7 +805,11 @@ s, sizeof s);
         }
 
     }
+
+    printf("HERE\n");
+
     close(sockfd);
+    
 }
 
 int main(int argc, char *argv[]) {   
@@ -814,6 +853,7 @@ int main(int argc, char *argv[]) {
     wordle.inputs.numPlayers = numPlayers;
     wordle.inputs.lobbyPort = lobbyPort;
     wordle.inputs.playPort = playPort;
+    printf("NUMROUNDS: %d\n", numRounds);
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
     pthread_mutex_unlock(&g_BigLock);
@@ -834,6 +874,6 @@ int main(int argc, char *argv[]) {
     printf("Sleeping before exiting\n");
     sleep(15);
     
-    printf("Exiting\n");
+    printf("And we are done\n");
     return 0;
 }   
