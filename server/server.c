@@ -840,11 +840,9 @@ s, sizeof s);
 int main(int argc, char *argv[]) {   
     srand(time(NULL));
     int numPlayers = 2;
-    char *lobbyPort = "41335";
-    char *playPort = "41336";
+    char *lobbyPort = "41345";
+    char *playPort = "41346";
     int numRounds = 3;
-    //FILE *DFile;
-    //DFile = fopen("../terms.txt", "r+");
     char fileName[BUFSIZ] = "../terms.txt";
 
     for (int i = 1; i < argc; i+=2) {
@@ -861,7 +859,6 @@ int main(int argc, char *argv[]) {
             numRounds = atoi(argv[i+1]);
         }
         else if (!strcmp(argv[i], "-d")) {
-            //fclose(DFile);
             sprintf(fileName, "../%s", argv[i+1]);
 
         }  
@@ -890,7 +887,6 @@ int main(int argc, char *argv[]) {
     sleep(15);
     
     printf("And we are done\n");
-    //fclose(DFile);
     return 0;
 }   
 
