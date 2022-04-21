@@ -594,7 +594,9 @@ void * Thread_Game (void * pData)
            strcpy(rounds_remaining_s, "0");
         }
         char *contents3[2] = {"RoundsRemaining", "PlayerInfo"};
-        char *fields3[2] = {rounds_remaining_s, NULL};
+        char rounds_remaining_s_2[2];
+        sprintf(rounds_remaining_s_2, "%d", rounds_remaining);
+        char *fields3[2] = {rounds_remaining_s_2, NULL};
         response = cJSON_Print(get_message("EndRound", contents3, fields3, 2));
         send_data(threadClient, response);
         pthread_mutex_unlock(&g_BigLock);
@@ -768,11 +770,7 @@ s, sizeof s);
         }
 
     }
-
-    printf("HERE\n");
-
     close(sockfd);
-    
 }
 
 int main(int argc, char *argv[]) {   
@@ -816,7 +814,6 @@ int main(int argc, char *argv[]) {
     wordle.inputs.numPlayers = numPlayers;
     wordle.inputs.lobbyPort = lobbyPort;
     wordle.inputs.playPort = playPort;
-    printf("NUMROUNDS: %d\n", numRounds);
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
     pthread_mutex_unlock(&g_BigLock);
@@ -837,6 +834,6 @@ int main(int argc, char *argv[]) {
     printf("Sleeping before exiting\n");
     sleep(15);
     
-    printf("And we are done\n");
+    printf("Exiting\n");
     return 0;
 }   
