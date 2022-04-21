@@ -22,6 +22,12 @@
 /* Global Variables */
 pthread_mutex_t     g_BigLock;
 
+struct time {
+    int tm_sec; // seconds (from 0 to 59)
+    int tm_min; // minutes (from 0 to 59)
+    int tm_hour; // hours (from 0 to 23)
+};
+
 struct ClientInfo
 {
     pthread_t threadClient;
@@ -58,12 +64,13 @@ typedef struct Lobby_Player {
 
 typedef struct Wordle
 {
-    struct Lobby_Player lobbyPlayers[4];
-    struct Game_Player players[4];
+    struct Lobby_Player lobbyPlayers[10];
+    struct Game_Player players[10];
     char *word;
     int num_in_lobby; //current num in lobby
     int num_players; //current num in game
     int nonce;
+    char *winner_name;
     char *winner;
     int created_game;
     int game_over;
@@ -76,6 +83,8 @@ Wordle wordle;
 bool dbg;
 
 #define BACKLOG 10   // how many pending connections queue will hold
+char *interpret_message(cJSON *message, struct ClientInfo threadClient);
+cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length);
 void sigchld_handler(int s) {
     // waitpid() might overwrite errno, so we save and restore it:
     int saved_errno = errno;
@@ -212,6 +221,25 @@ int check_profanity(char *guess) {
     }
     return 0;
 
+}
+
+
+void promptGuess(int guess_number, char *name, char *word_length_s, struct ClientInfo threadClient) {
+
+    char *contents1[3] = {"WordLength", "Name", "GuessNumber"};
+    char guess_number_s[2];
+    sprintf(guess_number_s, "%d", guess_number);
+    char *fields1[3]  = {"", name, ""};
+    fields1[0] = word_length_s;
+    fields1[2] = guess_number_s;
+    char *response = cJSON_Print(get_message("PromptForGuess", contents1, fields1, 3));
+    send_data(threadClient, response);
+}
+
+char *awaitGuess(char * data, struct ClientInfo threadClient) {
+    char * result = interpret_message(cJSON_Parse(data), threadClient);
+    free(data);
+    return result;
 }
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
@@ -354,35 +382,54 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
         player.number = wordle.num_players + 1;
         wordle.players[wordle.num_players] = player;
         wordle.num_players += 1;
-        printf("updated num: %d\n", wordle.num_players);
-        printf("total: %d\n", wordle.inputs.numPlayers);
     }
     char *contents[3] = {"Name", "Number", "Result"};
     char *response = cJSON_Print(get_message("JoinInstanceResult", contents, fields, 3));
     send_data(threadClient, response);
 }
 
-void checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
+char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
     printf("%s guessed %s\n", name, guess);
-    //send guessresponse
+    char *accepted = "Yes";
+
+    //check for invalid word
+    printf("word: %d\n", strlen(wordle.word));
+    printf("guess: %d\n", strlen(guess));
+    if(strlen(wordle.word) != strlen(guess)) {
+        accepted = "No";
+    }
 
     //todo check if word is correct and update correct
     for(int i = 0; i < wordle.num_players; i++) {
         if(!strcmp(wordle.players[i].name, name)) {
+            if(!strcmp(wordle.word, guess)) {
+                wordle.players[i].correct = "Yes";
+                wordle.winner = "Yes";
+            }
+            else {
+                wordle.players[i].correct = "No";
+            }
             wordle.players[i].guess = guess;
-            //TODO if(correct word) -> set correct field
-            //TOOD if(correct word) -> set wordle.winner
-            //TODO set receipt time
-            //TODO set result string
+            //TODO get receipt time
+            time_t tmi;
+            struct  time* utcTime;
+            time(&tmi);
+            utcTime = (struct time *) gmtime(&tmi);
+            char time_buff[100];
+            snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d\n", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
+            //TODO change below
+            wordle.players[i].receipt_time = "time";
+            wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
+            break;
         }
     }
+    
 
-    //todo change accepted based on something?
     char *contents[3] = {"Name", "Guess", "Accepted"};
-    char *fields[3] = {name, guess, "Yes"};
+    char *fields[3] = {name, guess, accepted};
     char *response = cJSON_Print(get_message("GuessResponse", contents, fields, 3));
     send_data(threadClient, response);
-
+    return  accepted;
 }
 
 char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
@@ -413,7 +460,7 @@ char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *guess = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Guess"));
-        checkGuess(name, guess, threadClient);
+        return checkGuess(name, guess, threadClient);
     }
     else {
         //TODO ERROR
@@ -454,6 +501,7 @@ void * Thread_Client_Game (void * pData)
     }
     //send start game message
     pthread_mutex_lock(&g_BigLock);
+    wordle.winner = "No";
     char *contents[2] = {"Rounds", "PlayerInfo"};
     char buffer[2];
     sprintf(buffer, "%d", wordle.inputs.numRounds);
@@ -466,9 +514,10 @@ void * Thread_Client_Game (void * pData)
     int num_round = 1;
     pthread_mutex_lock(&g_BigLock);
     int rounds_remaining = wordle.inputs.numRounds;
+    char *word = word_to_guess();
+    wordle.word = word;
+    printf("word: %s with length of %d\n", word, (int)strlen(word));
     while(rounds_remaining > 0) {
-        char *word = word_to_guess();
-        printf("word: %s with length of %d\n", word, (int)strlen(word));
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
         char word_length_s[2];
         sprintf(word_length_s, "%d", (int)strlen(word));
@@ -480,6 +529,10 @@ void * Thread_Client_Game (void * pData)
         fields[0] = word_length_s;
         fields[1] = round_s;
         fields[2] = rounds_remaining_s;
+        //reset winner fields
+        for(int i = 0; i < wordle.num_players; i++) {
+            wordle.players[i].winner = "No";
+        }
         char *response = cJSON_Print(get_message("StartRound", contents, fields, 4));
         send_data(threadClient, response);
         wordle.num_guessed = 0;
@@ -488,26 +541,26 @@ void * Thread_Client_Game (void * pData)
         //int no_winners = 1;
         int guess_number = 1;
 
+        //TODO keep looping until accepted guess
         //prompt for guess
-        pthread_mutex_lock(&g_BigLock);
-        char *contents1[3] = {"WordLength", "Name", "GuessNumber"};
-        char guess_number_s[2];
-        sprintf(guess_number_s, "%d", guess_number);
-        char *fields1[3]  = {"", name, ""};
-        fields1[0] = word_length_s;
-        fields1[2] = guess_number_s;
-        response = cJSON_Print(get_message("PromptForGuess", contents1, fields1, 3));
-        send_data(threadClient, response);
-        pthread_mutex_unlock(&g_BigLock);
+        while(1) {
+            pthread_mutex_lock(&g_BigLock);
+            promptGuess(guess_number, name, word_length_s, threadClient);
+            pthread_mutex_unlock(&g_BigLock);
+            guess_number++;
 
-        //await guess
-        char *data = receive_data(threadClient);
-        pthread_mutex_lock(&g_BigLock);
-        interpret_message(cJSON_Parse(data), threadClient);
-        free(data);
-        wordle.num_guessed += 1;
-        pthread_mutex_unlock(&g_BigLock);
-
+            char *data = receive_data(threadClient);
+            pthread_mutex_lock(&g_BigLock);
+            if(!strcmp(awaitGuess(data, threadClient), "Yes")) {
+                wordle.num_guessed++;
+                pthread_mutex_unlock(&g_BigLock);
+                break;
+            }
+            else {
+                pthread_mutex_unlock(&g_BigLock);
+            }
+        }
+        printf("BREAKING OUT\n");
         sleep(1);
         //stall until all guesses are received
         while(1) {

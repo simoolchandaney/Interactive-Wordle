@@ -234,12 +234,15 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
         printf("A player guessed the word correctly!\n");
     }
 
+    printf("1\n");
     for(int i = 0; i < numPlayers; i++) {
+        printf("2\n");
         if(!strcmp(corrects[i], "Yes")) {
             printf("%s. %s guessed correctly in %s seconds.\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
         }
         else {
+            printf("3\n");
             printf("%s. %s guessed incorrectly in %s seconds.\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
         }
