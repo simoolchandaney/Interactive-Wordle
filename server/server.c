@@ -144,51 +144,57 @@ int get_nonce() {
     return r;
 }
 
-// fucntion that selects random word from text file
+// function that selects random word from text file
 char * word_to_guess() {
-    return "sample";
-    int c;
     int wordCount = 0;
-    FILE *file_handle = fopen (wordle.inputs.fileName, "r");
-    while ((c = fgetc(file_handle)) != EOF){
-       wordCount++; 
+    FILE *file_handle = fopen ("terms.txt", "r");
+    char chunk[BUFSIZ];
+    strcpy(chunk, "");
+    while(fgets(chunk, sizeof(chunk), file_handle) != NULL) {
+        //fputs(chunk, stdout);
+        wordCount++;
     }
-    int i;
-    char **words = (char**) calloc(wordCount, sizeof(char*));
-    for (i = 0; i < wordCount; i++) {
-        words[i] = (char*) calloc(11, sizeof(char));
-        fscanf (file_handle, "%s", words[i]); 
-    }
+    printf("wordCount is: %d\n", wordCount);
+    srand(time(NULL));
     int r = rand() % wordCount;
-    char *result = NULL;
-    strcpy(result, words[r]);
-    for (i = 0; i < wordCount; ++i) {
-        free (words[i]); 
+    printf("%d\n", r);
+    
+    rewind(file_handle);
+
+    int i;
+    static char chunk2[BUFSIZ];
+    strcpy(chunk2, "");
+    for (i = 0; i < r; i++) {
+       fgets(chunk2, sizeof(chunk2), file_handle); 
     }
-    free(words);
-    return result;
+    //printf("%s\n", chunk2);
+    fclose(file_handle);
+    return (char *) chunk2;
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
 
-    char *letters = (char*) malloc(strlen(guess)*sizeof(char));
-    for (int l = 0; l < strlen(guess); l++) {
+    //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
+    static char letters[BUFSIZ];
+    strcpy(letters, "");
+    int l, i, j, k; 
+    for (l = 0; l < strlen(guess); l++) {
         letters[l] = 'B'; // grey
     }
-    for (int i = 0; i < strlen(guess); i++) {
-        for (int j = 0; j < strlen(key); j++) {
+    for (i = 0; i < strlen(guess); i++) {
+        for (j = 0; j < strlen(key); j++) {
             if (guess[i] == key[j]) {
                 letters[i] = 'Y'; // yellow 
             }
         }
     }
-    for (int k = 0; k < strlen(guess); k++) {
+    for (k = 0; k < strlen(guess); k++) {
         if (guess[k] == key[k]) {
             letters[k] = 'G'; // green 
         }
     }
-    free(letters);
-    return letters;
+    //free(letters);
+    return (char *) letters;
 }
 
 
