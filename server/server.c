@@ -189,7 +189,6 @@ int score_calc(char *color_word) {
     int total = 0;
     bool all_correct = true;
 
-    printf("%s\n", color_word);
     for(int i = 0; i < strlen(color_word); i++) {
 
         if(color_word[i] == 'G') {
@@ -806,10 +805,7 @@ s, sizeof s);
 
     }
 
-    printf("HERE\n");
-
-    close(sockfd);
-    
+    close(sockfd);  
 }
 
 int main(int argc, char *argv[]) {   
@@ -853,7 +849,6 @@ int main(int argc, char *argv[]) {
     wordle.inputs.numPlayers = numPlayers;
     wordle.inputs.lobbyPort = lobbyPort;
     wordle.inputs.playPort = playPort;
-    printf("NUMROUNDS: %d\n", numRounds);
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
     pthread_mutex_unlock(&g_BigLock);
