@@ -112,7 +112,8 @@ int connectToLobby(char *player_name, char *server_name, char *lobby_port);
 
 void joinResult(char *name, char *result, int sockfd) {
     if(!strcmp(result, "Yes")) {
-        printf("Joined Successfully\n");
+        printf("Joined lobby successfully\n");
+        printf("--------------------\n");
         //receive StartInstance
         sleep(1);
         char *data = receive_data(sockfd);
@@ -148,8 +149,9 @@ void startInstance(char *server, char *port, char *nonce, int sockfd) {
 void joinInstanceResult(char *name, char *number, char *result, int sockfd) {
     if(!strcmp(result, "Yes")) {
         //receive start game
-        printf("Successfully joined game lobby.\n");
+        printf("Joined game lobby successfully\n");
         printf("There are %s players in the game\n", number);
+        printf("--------------------\n");
         char *data = receive_data(sockfd);
         interpret_message(cJSON_Parse(data), sockfd, atoi(number));
     }
@@ -176,6 +178,7 @@ void startGame(char *rounds, char *names[], char *numbers[], int sockfd, int num
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s\n", numbers[i], names[i]);
     }
+    printf("--------------------\n");
     sleep(1);
     char *data = receive_data(sockfd);
     interpret_message(cJSON_Parse(data), sockfd, numPlayers);
@@ -185,11 +188,12 @@ void startGame(char *rounds, char *names[], char *numbers[], int sockfd, int num
 void startRound(char *word_length, char *round, char *rounds_remaining, char *names[], char *numbers[], char *scores[], int sockfd, int numPlayers) {
 
     printf("Round %s is starting\n", round);
-    printf("%s round remaining.\n", rounds_remaining);
+    printf("%s round remaining\n", rounds_remaining);
     printf("Players: \n");
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s's score %s\n", numbers[i], names[i], scores[i]);
     }
+    printf("--------------------\n");
     sleep(1);
 
     //receive promptForGuess
@@ -211,6 +215,7 @@ void promptForGuess(char *word_length, char *name, char *guess_number, int sockf
 void guessResponse(char *name, char *guess, char *accepted, int sockfd, int numPlayers) {
     if(!strcmp(accepted, "Yes")) {
         printf("%s was an acceptable word \n", guess);
+        printf("--------------------\n");
         printf("Waiting for other players to guess...\n");
         sleep(1);
         //receive guessresult
@@ -224,29 +229,28 @@ void guessResponse(char *name, char *guess, char *accepted, int sockfd, int numP
         char *data = receive_data(sockfd);
         interpret_message(cJSON_Parse(data), sockfd, numPlayers);
     }
+    printf("--------------------\n");
 
 }
 
 void guessResult(char *winner, char *name, char *names[], char *numbers[], char *corrects[], char *receipt_times[], char *results[], int sockfd, int numPlayers) {
-    printf("All guesses are in for this round.\n");
+    printf("All guesses are in for this round\n");
 
     if(!strcmp(winner, "Yes")) {
         printf("A player guessed the word correctly!\n");
     }
 
-    printf("1\n");
     for(int i = 0; i < numPlayers; i++) {
-        printf("2\n");
         if(!strcmp(corrects[i], "Yes")) {
-            printf("%s. %s guessed correctly in %s seconds.\n", numbers[i], names[i], receipt_times[i]);
+            printf("%s. %s guessed correctly at %s\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
         }
         else {
-            printf("3\n");
-            printf("%s. %s guessed incorrectly in %s seconds.\n", numbers[i], names[i], receipt_times[i]);
+            printf("%s. %s guessed incorrectly at %s\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
         }
     }
+    printf("--------------------\n");
 
     //receive endround if winner
     sleep(1);
@@ -256,8 +260,8 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
 }
 
 void endRound(char *rounds_remaining, char *names[], char *numbers[], char *scores_earned[], char *winners[], int sockfd, int numPlayers) {
-    printf("This round has ended.\n");
-    printf("There are %s rounds remaining.\n", rounds_remaining);
+    printf("This round has ended\n");
+    printf("There are %s rounds remaining\n", rounds_remaining);
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s's score this round: %s", numbers[i], names[i], scores_earned[i]);
         if(!strcmp(winners[i], "Yes")) {
@@ -267,6 +271,7 @@ void endRound(char *rounds_remaining, char *names[], char *numbers[], char *scor
             printf("\n");
         }
     }
+    printf("--------------------\n");
     sleep(1);
 
     //receive either endgame or startround
@@ -280,6 +285,7 @@ void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], 
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s's score: %s\n", numbers[i], names[i], scores[i]);
     }
+    printf("--------------------\n");
 }
 
 int interpret_message(cJSON *message, int sockfd, int numPlayers) {
@@ -474,7 +480,7 @@ int connectToLobby(char *player_name, char *server_name, char *lobby_port) {
     }
 
     inet_ntop(p->ai_family, get_in_addr((struct sockaddr *)p->ai_addr), s, sizeof s);
-    printf("client: connecting to %s\n", s);
+    //printf("client: connecting to %s\n", s);
     freeaddrinfo(servinfo); // all done with this structure
 
     return sockfd;
@@ -504,7 +510,8 @@ int main(int argc, char *argv[])
         }
         else continue;
     }
-    
+
+    //todo create thread for chat
     int sockfd = connectToLobby(player_name, server_name, lobby_port);
     
 

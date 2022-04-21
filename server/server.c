@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -163,26 +164,28 @@ char * word_to_guess() {
         //fputs(chunk, stdout);
         wordCount++;
     }
-    printf("wordCount is: %d\n", wordCount);
+    //printf("wordCount is: %d\n", wordCount);
     srand(time(NULL));
-    int r = rand() % wordCount;
-    printf("%d\n", r);
-    
+    int r = (rand() % wordCount) + 1;
+    //printf("%d\n", r);
     rewind(file_handle);
 
     int i;
-    static char chunk2[BUFSIZ];
-    strcpy(chunk2, "");
+    char chunk2[BUFSIZ];
     for (i = 0; i < r; i++) {
        fgets(chunk2, sizeof(chunk2), file_handle); 
     }
-    //printf("%s\n", chunk2);
+    chunk2[strlen(chunk2)  - 1] = '\0';
     fclose(file_handle);
-    return (char *) chunk2;
+    char *word = chunk2;
+    for(int i = 0; i < strlen(word); i++) {
+        word[i] = toupper(word[i]);
+    }
+    return word;
 }
 
 char * word_guess_color_builder(char * guess, char * key) {
-
+    //TODO FIX
     //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
     static char letters[BUFSIZ];
     strcpy(letters, "");
@@ -207,20 +210,15 @@ char * word_guess_color_builder(char * guess, char * key) {
 }
 
 
-int check_profanity(char *guess) {
+int check_profanity(char *message) {
     char *profanity[] = {"fuck", "shit", "bitch", "damn", "pussy", "penis", "dick", "cock", "bastard", "asshole"};
-    int i = 0;
 
-    while(profanity[i]) {
-
-        if(!strcmp(profanity[i], guess)) {
+    for(int i = 0; i < sizeof(profanity)/sizeof(profanity[0]); i++) {
+        if(strstr(message, profanity[i])) {
             return 1;
         }
-
-        i++;
     }
     return 0;
-
 }
 
 
@@ -340,6 +338,10 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
             unique = 0;
         }
     }
+    if(!strcmp(name, "mpwordle")) {
+        unique = 0;
+    }
+
     char *fields[2] = {name, ""};
     if(unique == 0) {
         fields[1] = "No";
@@ -358,6 +360,11 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
 }
 
 void chat(char *name, char *text, struct ClientInfo threadClient) {
+    /*
+    char chat_buff[BUFSIZ];
+    snprintf(chat_buff, "%s: %s", name, test);
+    char *message = chat_buff;
+    */
 }
 
 void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
@@ -367,6 +374,9 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
         if(!strcmp(name, wordle.players[i].name)) {
             unique = 0;
         }
+    }
+    if(!strcmp(name, "mpwordle")) {
+        unique = 0;
     }
 
     char buffer[2];
@@ -389,12 +399,11 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
 }
 
 char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
-    printf("%s guessed %s\n", name, guess);
     char *accepted = "Yes";
-
+    for(int i = 0; i < strlen(guess); i++) {
+        guess[i] = toupper(guess[i]);
+    }
     //check for invalid word
-    printf("word: %d\n", strlen(wordle.word));
-    printf("guess: %d\n", strlen(guess));
     if(strlen(wordle.word) != strlen(guess)) {
         accepted = "No";
     }
@@ -410,15 +419,15 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
                 wordle.players[i].correct = "No";
             }
             wordle.players[i].guess = guess;
-            //TODO get receipt time
             time_t tmi;
             struct  time* utcTime;
             time(&tmi);
             utcTime = (struct time *) gmtime(&tmi);
             char time_buff[100];
-            snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d\n", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
+            snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
             //TODO change below
-            wordle.players[i].receipt_time = "time";
+            //printf("time: %s\n", time_buff);
+            strcpy(wordle.players[i].receipt_time, time_buff);
             wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
             break;
         }
@@ -468,7 +477,7 @@ char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
     return "";
 }
 
-void * Thread_Client_Game (void * pData)
+void * Thread_Game (void * pData)
 {
     struct ClientInfo * pClient;
     struct ClientInfo   threadClient;
@@ -516,7 +525,7 @@ void * Thread_Client_Game (void * pData)
     int rounds_remaining = wordle.inputs.numRounds;
     char *word = word_to_guess();
     wordle.word = word;
-    printf("word: %s with length of %d\n", word, (int)strlen(word));
+    printf("word is: %s\n", word);
     while(rounds_remaining > 0) {
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
         char word_length_s[2];
@@ -524,7 +533,7 @@ void * Thread_Client_Game (void * pData)
         char round_s[2];
         sprintf(round_s, "%d", num_round);
         char rounds_remaining_s[2];
-        sprintf(rounds_remaining_s, "%d", (int)wordle.inputs.numRounds - 1);
+        sprintf(rounds_remaining_s, "%d", rounds_remaining);
         char *fields[4] = {"", "", "", NULL};
         fields[0] = word_length_s;
         fields[1] = round_s;
@@ -538,10 +547,9 @@ void * Thread_Client_Game (void * pData)
         wordle.num_guessed = 0;
         pthread_mutex_unlock(&g_BigLock);
         sleep(2);
-        //int no_winners = 1;
+        rounds_remaining--;
         int guess_number = 1;
 
-        //TODO keep looping until accepted guess
         //prompt for guess
         while(1) {
             pthread_mutex_lock(&g_BigLock);
@@ -560,7 +568,6 @@ void * Thread_Client_Game (void * pData)
                 pthread_mutex_unlock(&g_BigLock);
             }
         }
-        printf("BREAKING OUT\n");
         sleep(1);
         //stall until all guesses are received
         while(1) {
@@ -581,18 +588,21 @@ void * Thread_Client_Game (void * pData)
         send_data(threadClient, response);
         pthread_mutex_unlock(&g_BigLock);
 
-        //TODO if there is a winner end round
         sleep(1);
         pthread_mutex_lock(&g_BigLock);
+        if(!strcmp(wordle.winner, "Yes")) {
+           strcpy(rounds_remaining_s, "0");
+        }
         char *contents3[2] = {"RoundsRemaining", "PlayerInfo"};
         char *fields3[2] = {rounds_remaining_s, NULL};
         response = cJSON_Print(get_message("EndRound", contents3, fields3, 2));
         send_data(threadClient, response);
         pthread_mutex_unlock(&g_BigLock);
 
-        rounds_remaining--;
-        num_round++;
         pthread_mutex_lock(&g_BigLock);
+        if(!strcmp(wordle.winner, "Yes")) {
+            break;
+        }
     }
     pthread_mutex_unlock(&g_BigLock);
 
@@ -610,119 +620,7 @@ void * Thread_Client_Game (void * pData)
     return NULL;
 }
 
-void Game_Lobby(char *nGamePort) {
-    // Adapting this from Beej's Guide
-    
-    int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
-    struct addrinfo hints, *servinfo, *p;
-    struct sockaddr_storage their_addr; // connector's address information
-    socklen_t sin_size;
-    //struct sigaction sa;
-    int yes=1;
-    char s[INET6_ADDRSTRLEN];
-    int rv;
-    
-    struct ClientInfo theClientInfo;
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // use my IP
-
-    if ((rv = getaddrinfo(NULL, nGamePort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return;
-    }
-
-    // loop through all the results and bind to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("server: socket");
-            continue;
-        }
-
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
-
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("server: bind");
-            continue;
-        }
-
-        break;
-    }
-
-    freeaddrinfo(servinfo); // all done with this structure
-
-    if (p == NULL)  {
-        fprintf(stderr, "server: failed to bind\n");
-        exit(1);
-    }
-
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-
-    printf("server: waiting for connections...\n");
-
-    while(1) 
-    {  
-        sin_size = sizeof their_addr;       
-        new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
-        
-        if (new_fd == -1) 
-        {
-            perror("accept");
-            continue;
-        }
-
-        // Simple bit of code but this can be helpful to detect successful connections 
-        inet_ntop(their_addr.ss_family,
-            get_in_addr((struct sockaddr *)&their_addr),
-s, sizeof s);
-        printf("server: got connection from %s\n", s);
-
-        // Print out this client information 
-        //sprintf(theClientInfo.szIdentifier, "%s-%d", s, nClientCount);
-        theClientInfo.socketClient = new_fd;
-
-        // From OS: Three Easy Pieces 
-        //   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf 
-        pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client_Game, &theClientInfo);
-        
-
-        //TODO end game properly
-        // Bail out when game is over
-        /*pthread_mutex_lock(&g_BigLock);
-        if(wordle.num_players == wordle.inputs.numPlayers) {
-            pthread_mutex_unlock(&g_BigLock);
-            while(1) {
-                pthread_mutex_lock(&g_BigLock);
-                if (wordle.game_over) {
-                    printf("GAMEOVER\n");
-                    pthread_mutex_unlock(&g_BigLock);
-                    sleep(15);
-                    break;
-                }
-                else {
-                    pthread_mutex_unlock(&g_BigLock);
-                }
-                sleep(5);
-            }
-        }*/
-        break;
-     
-    }
-    close(sockfd);
-}
-
-void * Thread_Client (void * pData)
+void * Thread_Lobby (void * pData)
 {
     
     struct ClientInfo * pClient;
@@ -748,8 +646,6 @@ void * Thread_Client (void * pData)
     //wait until all players are in lobby
     while(1) {
         pthread_mutex_lock(&g_BigLock);
-        //printf("num in lobby in %d: %d\n", threadClient.socketClient, wordle.num_in_lobby);
-        //printf("total: %d\n", wordle.inputs.numPlayers);
         if(wordle.num_in_lobby == wordle.inputs.numPlayers) {
             pthread_mutex_unlock(&g_BigLock);
             break;
@@ -772,24 +668,11 @@ void * Thread_Client (void * pData)
     send_data(threadClient, cJSON_Print(message));
     pthread_mutex_unlock(&g_BigLock);
 
-    // Only create once instance of Game Lobby
-    pthread_mutex_lock(&g_BigLock);
-    if(wordle.created_game == 0)
-    {
-        wordle.created_game = 1;
-        char *playPort = wordle.inputs.playPort;
-        pthread_mutex_unlock(&g_BigLock);
-        Game_Lobby(playPort);
-
-    }
-    else {
-        pthread_mutex_unlock(&g_BigLock); 
-    }  
-
     return NULL;
+    
 }
 
-void Server_Lobby (char *nLobbyPort)
+void Get_Clients(char *nPort, int choice)
 {
     
     // Adapting this from Beej's Guide
@@ -810,7 +693,7 @@ void Server_Lobby (char *nLobbyPort)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE; // use my IP
 
-    if ((rv = getaddrinfo(NULL, nLobbyPort, &hints, &servinfo)) != 0) {
+    if ((rv = getaddrinfo(NULL, nPort, &hints, &servinfo)) != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return;
     }
@@ -852,9 +735,8 @@ void Server_Lobby (char *nLobbyPort)
 
     printf("server: waiting for connections...\n");
 
-    while(1) 
+    for(int i = 0; i< wordle.inputs.numPlayers; i++) 
     {  
-
         sin_size = sizeof their_addr;       
         new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
         
@@ -878,19 +760,16 @@ s, sizeof s);
 
         // From OS: Three Easy Pieces 
         //   https://pages.cs.wisc.edu/~remzi/OSTEP/threads-api.pdf 
-        pthread_create(&(theClientInfo.threadClient), NULL, Thread_Client, &theClientInfo);
-
-        // Bail out when all clients connect
-        pthread_mutex_lock(&g_BigLock);
-        if(wordle.num_in_lobby == wordle.inputs.numPlayers)
-        {
-            pthread_mutex_unlock(&g_BigLock);
-            break;
+        if(choice == 0) {
+            pthread_create(&(theClientInfo.threadClient), NULL, Thread_Lobby, &theClientInfo);
         }
         else {
-            pthread_mutex_unlock(&g_BigLock); 
-        }  
+            pthread_create(&(theClientInfo.threadClient), NULL, Thread_Game, &theClientInfo);
+        }
+
     }
+
+    printf("HERE\n");
 
     close(sockfd);
     
@@ -937,15 +816,27 @@ int main(int argc, char *argv[]) {
     wordle.inputs.numPlayers = numPlayers;
     wordle.inputs.lobbyPort = lobbyPort;
     wordle.inputs.playPort = playPort;
+    printf("NUMROUNDS: %d\n", numRounds);
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
     pthread_mutex_unlock(&g_BigLock);
-    Server_Lobby(lobbyPort);
+    Get_Clients(lobbyPort, 0);
+    Get_Clients(playPort, 1);
 
+
+    while(1) {
+        pthread_mutex_lock(&g_BigLock);
+        if(wordle.game_over) {
+            pthread_mutex_unlock(&g_BigLock);
+            break;
+        }
+        else {
+            pthread_mutex_unlock(&g_BigLock);
+        }
+    }
     printf("Sleeping before exiting\n");
     sleep(15);
     
     printf("And we are done\n");
     return 0;
 }   
-
