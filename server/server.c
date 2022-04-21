@@ -14,14 +14,12 @@
 #include <stdbool.h>
 #include "../cJSON.h"
 
-bool debugFlag = false;
 
 /* Global Defines */
 #define BUFFER_MAX 1000
 #define BACKLOG 10   // how many pending connections queue will hold
 
 /* Global Variables */
-char g_bKeepLooping = 1;
 pthread_mutex_t     g_BigLock;
 
 struct ClientInfo
@@ -37,6 +35,7 @@ typedef struct Input {
     char *playPort;
     int numRounds;
     char *fileName;
+    int dbg;
 } Input;
 
 typedef struct Game_Player {
@@ -74,6 +73,7 @@ typedef struct Wordle
 } Wordle;
 
 Wordle wordle;
+bool dbg;
 
 #define BACKLOG 10   // how many pending connections queue will hold
 void sigchld_handler(int s) {
@@ -112,7 +112,9 @@ char *get_IP() {
 
 
 void send_data(struct ClientInfo threadClient, char *response) {
-    printf("sending to %d: %s\n", threadClient.socketClient, response);
+    if(dbg) {
+        printf("sending to %d: %s\n", threadClient.socketClient, response);
+    }
     if (send(threadClient.socketClient, response, strlen(response), 0) == -1)
     {
         perror("send");     
@@ -130,7 +132,9 @@ char *receive_data(struct ClientInfo threadClient) {
 
     char *return_val = malloc(sizeof(szBuffer));
     memcpy(return_val, szBuffer, numBytes);
-    printf("received: %s\n", return_val);
+    if(dbg) {
+        printf("received: %s\n", return_val);
+    }
     return return_val;
 }
 
@@ -835,12 +839,12 @@ s, sizeof s);
 
 int main(int argc, char *argv[]) {   
     srand(time(NULL));
-    int numPlayers = 1;
+    int numPlayers = 2;
     char *lobbyPort = "41335";
     char *playPort = "41336";
-    int numRounds = 2;
-    FILE *DFile;
-    DFile = fopen("../terms.txt", "r+");
+    int numRounds = 3;
+    //FILE *DFile;
+    //DFile = fopen("../terms.txt", "r+");
     char fileName[BUFSIZ] = "../terms.txt";
 
     for (int i = 1; i < argc; i+=2) {
@@ -857,12 +861,12 @@ int main(int argc, char *argv[]) {
             numRounds = atoi(argv[i+1]);
         }
         else if (!strcmp(argv[i], "-d")) {
-            fclose(DFile);
+            //fclose(DFile);
             sprintf(fileName, "../%s", argv[i+1]);
 
         }  
         else if (!strcmp(argv[i], "-dbg")) {
-            debugFlag = true;
+            dbg = true;
         }
         else if (!strcmp(argv[i], "-gameonly")) {
             // TODO: act as a game instance server only awaiting clients on port X (also ignore the provided nonce)
@@ -886,7 +890,7 @@ int main(int argc, char *argv[]) {
     sleep(15);
     
     printf("And we are done\n");
-    fclose(DFile);
+    //fclose(DFile);
     return 0;
 }   
 
