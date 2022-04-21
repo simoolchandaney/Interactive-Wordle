@@ -174,24 +174,27 @@ char * word_to_guess() {
 
 char * word_guess_color_builder(char * guess, char * key) {
 
-    char *letters = (char*) malloc(strlen(guess)*sizeof(char));
-    for (int l = 0; l < strlen(guess); l++) {
+    //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
+    static char letters[BUFSIZ];
+    strcpy(letters, "");
+    int l, i, j, k; 
+    for (l = 0; l < strlen(guess); l++) {
         letters[l] = 'B'; // grey
     }
-    for (int i = 0; i < strlen(guess); i++) {
-        for (int j = 0; j < strlen(key); j++) {
+    for (i = 0; i < strlen(guess); i++) {
+        for (j = 0; j < strlen(key); j++) {
             if (guess[i] == key[j]) {
                 letters[i] = 'Y'; // yellow 
             }
         }
     }
-    for (int k = 0; k < strlen(guess); k++) {
+    for (k = 0; k < strlen(guess); k++) {
         if (guess[k] == key[k]) {
             letters[k] = 'G'; // green 
         }
     }
-    free(letters);
-    return letters;
+    //free(letters);
+    return (char *) letters;
 }
 
 
