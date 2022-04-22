@@ -23,7 +23,12 @@ typedef struct Inputs {
     int nonce;
 } Inputs;
 
+pthread_mutex_t     g_BigLock;
+
 Inputs input;
+int guess_ready;
+int g_sockfd;
+int game_over;
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -35,7 +40,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 void send_data(int sockfd, char *data) {
-    //printf("sending to %d: %s\n", sockfd, data);
+    printf("sending to %d: %s\n", sockfd, data);
     if ((send(sockfd, data, strlen(data), 0)) == -1) {
         perror("recv");
         exit(1);  
@@ -68,7 +73,7 @@ char *receive_data(int sockfd) {
 
     char *return_val = malloc(sizeof(szBuffer));
     memcpy(return_val, szBuffer, numBytes);
-    //printf("received: %s\n", return_val);
+    printf("received: %s\n", return_val);
     return return_val;
 }
 
@@ -94,14 +99,19 @@ void sendJoinInstance(int sockfd) {
     send_data(sockfd, message);
 }
 
-void sendGuess(int sockfd) {
-    char guess[100];
-    scanf("%s", guess);
-    
+void sendChat(int sockfd, char *text) {
+    char *contents[2] = {"Name", "Text"};
+    char *fields[2] = {input.name, ""};
+    fields[1] = text;
+    //send chat
+    char *message = cJSON_Print(get_message("Chat", contents, fields, 2));
+    send_data(sockfd, message);
+}
+void sendGuess(int sockfd, char *guess) {
+    guess_ready = 0;
     char *contents[2] = {"Name", "Guess"};
     char *fields[2] = {input.name, ""};
     fields[1] = guess;
-
     //send guess
     char *message = cJSON_Print(get_message("Guess", contents, fields, 2));
     send_data(sockfd, message);
@@ -131,14 +141,22 @@ void joinResult(char *name, char *result, int sockfd) {
 }
 
 void chat(char *name, char *text, int sockfd) {
-    //TODO chat
-    return;
+    printf("%s: %s\n", name, text);
+    if(guess_ready) {
+    }
+    else {
+        char *data = receive_data(sockfd);
+        interpret_message(cJSON_Parse(data), sockfd, 0);
+        free(data);
+    }
 }
+
 void startInstance(char *server, char *port, char *nonce, int sockfd) {
     input.nonce = atoi(nonce);
     close(sockfd);
     sleep(2); //make sure lobby is created before client connects
     sockfd = connectToLobby(input.name, server, port);
+    g_sockfd = sockfd;
     sendJoinInstance(sockfd);
     //receive joininstanceresult
     char *data = receive_data(sockfd);
@@ -204,7 +222,7 @@ void startRound(char *word_length, char *round, char *rounds_remaining, char *na
 
 void promptForGuess(char *word_length, char *name, char *guess_number, int sockfd, int numPlayers) {
     printf("Guess a %s letter word: \n", word_length);
-    sendGuess(sockfd);
+    guess_ready = 1;
     sleep(1);
     //receive guessresponse
     char *data = receive_data(sockfd);
@@ -224,7 +242,7 @@ void guessResponse(char *name, char *guess, char *accepted, int sockfd, int numP
     }
     else {
         printf("%s is not a valid word. Please try again: \n", guess);
-        sendGuess(sockfd);
+        guess_ready = 1;
         //receive guessresponse
         char *data = receive_data(sockfd);
         interpret_message(cJSON_Parse(data), sockfd, numPlayers);
@@ -243,33 +261,11 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
     for(int i = 0; i < numPlayers; i++) {
         if(!strcmp(corrects[i], "Yes")) {
             printf("%s. %s guessed correctly at %s\n", numbers[i], names[i], receipt_times[i]);
-            
             printf("Result: %s\n", results[i]);
-            for(int j = 0; j < strlen(results[i]); j++) {
-                printf("%c|",results[i][j]);
-            }
-            printf("\n");
         }
         else {
             printf("%s. %s guessed incorrectly at %s\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
-
-            printf(" ");
-            for(int k = 0; k < strlen(results[i]); k++) {
-                printf("- ");
-            }
-            printf("\n");
-
-            printf("|");
-            for(int j = 0; j < strlen(results[i]); j++) {
-                printf("%c|",results[i][j]);
-            }
-            printf("\n ");
-
-            for(int l = 0; l < strlen(results[i]); l++) {
-                printf("- ");
-            }
-            printf("\n");
         }
     }
     printf("--------------------\n");
@@ -308,6 +304,8 @@ void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], 
         printf("%s. %s's score: %s\n", numbers[i], names[i], scores[i]);
     }
     printf("--------------------\n");
+    sleep(10);
+    game_over = 1;
 }
 
 int interpret_message(cJSON *message, int sockfd, int numPlayers) {
@@ -462,6 +460,26 @@ int interpret_message(cJSON *message, int sockfd, int numPlayers) {
     return sockfd;
 }
 
+void *Chat(void *vargp) {
+    pthread_mutex_lock(&g_BigLock);
+    while(!game_over) {
+        pthread_mutex_unlock(&g_BigLock);
+        char input[BUFFER_MAX];
+        fgets(input, BUFFER_MAX, stdin);
+        input[strlen(input) - 1] = '\0';
+        if(input[0] == '$') {
+            char *input_n = &input[1];
+            sendChat(g_sockfd, input_n);
+        }
+        else if(guess_ready && strlen(input) > 0) {
+            sendGuess(g_sockfd, input);
+        }
+        pthread_mutex_lock(&g_BigLock);
+    }
+    pthread_mutex_unlock(&g_BigLock);
+    return NULL;
+}
+
 int connectToLobby(char *player_name, char *server_name, char *lobby_port) {
     int sockfd;
     struct addrinfo hints, *servinfo, *p;
@@ -502,6 +520,13 @@ int connectToLobby(char *player_name, char *server_name, char *lobby_port) {
     //printf("client: connecting to %s\n", s);
     freeaddrinfo(servinfo); // all done with this structure
 
+    pthread_mutex_lock(&g_BigLock);
+    g_sockfd = sockfd;
+    pthread_mutex_unlock(&g_BigLock);
+
+    pthread_t thread_id;
+    pthread_create(&(thread_id), NULL, Chat, NULL);
+
     return sockfd;
 }
 
@@ -511,7 +536,6 @@ int main(int argc, char *argv[])
     char player_name[BUFSIZ];
     char server_name[BUFSIZ];
     char lobby_port[BUFSIZ];
-
 
     for(int i = 1; i < argc; i++) {
 
@@ -530,7 +554,13 @@ int main(int argc, char *argv[])
         else continue;
     }
 
-    //todo create thread for chat
+    pthread_mutex_init(&g_BigLock, NULL);
+
+    pthread_mutex_lock(&g_BigLock);
+    guess_ready = 0;
+    game_over = 0;
+    pthread_mutex_unlock(&g_BigLock);
+    //create thread for chat
     int sockfd = connectToLobby(player_name, server_name, lobby_port);
     
 
