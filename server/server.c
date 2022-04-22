@@ -767,6 +767,21 @@ void * Thread_Lobby (void * pData)
         } 
     }
 
+
+    while(1) {
+        szBuffer = receive_data(threadClient, 1);
+        pthread_mutex_lock(&g_BigLock);
+        if(strlen(szBuffer) > 0) {
+            interpret_message(cJSON_Parse(szBuffer), threadClient);
+            free(szBuffer);
+        }
+        else {
+            pthread_mutex_unlock(&g_BigLock);
+            break;
+        }
+        pthread_mutex_unlock(&g_BigLock);
+    }
+
     //send startInstance to all clients
     pthread_mutex_lock(&g_BigLock);
     char *contents[3] = {"Server", "Port", "Nonce"};
