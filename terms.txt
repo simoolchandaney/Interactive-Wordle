@@ -17,7 +17,7 @@ Handshake
 Hostname
 HTTP
 HTTPS
-IP 
+IP
 IPv4
 IPv6
 ISP

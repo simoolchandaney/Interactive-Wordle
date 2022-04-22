@@ -216,12 +216,24 @@ char * word_guess_color_builder(char * guess, char * key) {
     char letters[BUFSIZ];
 
     int l, i, j, k; 
+    int count = 0;
+    int *found_pos = malloc(sizeof(guess));
     for (l = 0; l < strlen(guess); l++) {
         letters[l] = 'B'; // grey
     }
+
+    for (k = 0; k < strlen(guess); k++) {
+        if (guess[k] == key[k]) {
+            letters[k] = 'G'; // green 
+            found_pos[count] = k;
+        }
+    }
+
     for (i = 0; i < strlen(guess); i++) {
         for (j = 0; j < strlen(key); j++) {
-            if (guess[i] == key[j]) {
+            if (guess[i] == key[j] && j != found_pos[count]) {
+                //printf("count: %d\n", count);
+                //printf("found pos: %d\n", found_pos[count]);
                 letters[i] = 'Y'; // yellow 
             }
         }
