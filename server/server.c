@@ -638,6 +638,7 @@ void * Thread_Game (void * pData)
         wordle.num_guessed = 0;
         pthread_mutex_unlock(&g_BigLock);
         rounds_remaining--;
+        sprintf(rounds_remaining_s, "%d", rounds_remaining);
         int guess_number = 1;
         char *check = "Yes";
         char * data = "";
@@ -673,10 +674,7 @@ void * Thread_Game (void * pData)
                 interpret_message(cJSON_Parse(data), threadClient);
                 free(data);
             }
-            printf("curr: %d\n", wordle.num_guessed);
-            printf("goal: %d\n", wordle.num_players);
             if(wordle.num_guessed == wordle.num_players) {
-                printf("WE OUT GOT ALL GUESSES\n");
                 pthread_mutex_unlock(&g_BigLock);
                 break;
             }
