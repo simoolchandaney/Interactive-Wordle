@@ -389,9 +389,16 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
             unique = 0;
         }
     }
+    //reserved name
     if(!strcmp(name, "mpwordle")) {
         unique = 0;
     }
+
+    //filter names
+    if(check_profanity(name) == 1) {
+        unique = 0;
+    }
+
 
     char *fields[2] = {name, ""};
     if(unique == 0) {
@@ -599,13 +606,10 @@ void * Thread_Game (void * pData)
     int num_round = 1;
     pthread_mutex_lock(&g_BigLock);
     int rounds_remaining = wordle.inputs.numRounds;
-    char *word = word_to_guess();
-    wordle.word = word;
-    printf("word is: %s\n", word);
     while(rounds_remaining > 0) {
         char *contents[4] = {"WordLength", "Round", "RoundsRemaining", "PlayerInfo"};
         char word_length_s[2];
-        sprintf(word_length_s, "%d", (int)strlen(word));
+        sprintf(word_length_s, "%d", (int)strlen(wordle.word));
         char round_s[2];
         sprintf(round_s, "%d", num_round);
         char rounds_remaining_s[2];
@@ -918,6 +922,11 @@ int main(int argc, char *argv[]) {
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
     wordle.in_lobby = 1;
+    char *word = word_to_guess();
+    wordle.word = word;
+    if(dbg) {
+        printf("word is: %s\n", word);
+    }
     pthread_mutex_unlock(&g_BigLock);
     Get_Clients(lobbyPort, 0);
     Get_Clients(playPort, 1);

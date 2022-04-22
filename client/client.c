@@ -40,7 +40,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 void send_data(char *data) {
-    printf("sending to %d: %s\n", g_sockfd, data);
+    //printf("sending to %d: %s\n", g_sockfd, data);
     if ((send(g_sockfd, data, strlen(data), 0)) == -1) {
         perror("recv");
         exit(1);  
@@ -73,7 +73,7 @@ char *receive_data() {
 
     char *return_val = malloc(sizeof(szBuffer));
     memcpy(return_val, szBuffer, numBytes);
-    printf("received: %s\n", return_val);
+    //printf("received: %s\n", return_val);
     return return_val;
 }
 
@@ -108,7 +108,9 @@ void sendChat(char *text) {
     send_data(message);
 }
 void sendGuess(char *guess) {
+    pthread_mutex_lock(&g_BigLock);
     guess_ready = 0;
+    pthread_mutex_unlock(&g_BigLock);
     char *contents[2] = {"Name", "Guess"};
     char *fields[2] = {input.name, ""};
     fields[1] = guess;
@@ -120,26 +122,23 @@ void sendGuess(char *guess) {
 int interpret_message(cJSON *message, int numPlayers);
 void connectToLobby(char *player_name, char *server_name, char *lobby_port);
 
-void joinResult(char *name, char *result) {
+void joinResult(char *name, char *result, int numPlayers) {
     if(!strcmp(result, "Yes")) {
         printf("Joined lobby successfully\n");
         printf("--------------------\n");
-        //receive StartInstance
-        sleep(1);
-        int chat = 1;
-        while(chat == 1) { 
-            char *data = receive_data();
-            chat = interpret_message(cJSON_Parse(data), 0);
-            free(data);
-        }
     }
     else {
-        printf("Name is invalid. Please input a new name: \n");
-        char name[100];
-        scanf("%s", name);
-        input.name = name;
-        sendJoin();
-        close(g_sockfd);
+        printf("Name is invalid.\n");
+        return;
+    }
+
+    //receive StartInstance
+    sleep(1);
+    int chat = 1;
+    while(chat == 1) { 
+        char *data = receive_data();
+        chat = interpret_message(cJSON_Parse(data), numPlayers);
+        free(data);
     }
 }
 
@@ -147,7 +146,7 @@ void chat(char *name, char *text, int numPlayers) {
     printf("%s: %s\n", name, text);
 }
 
-void startInstance(char *server, char *port, char *nonce) {
+void startInstance(char *server, char *port, char *nonce, int numPlayers) {
     input.nonce = atoi(nonce);
     close(g_sockfd);
     sleep(2); //make sure lobby is created before client connects
@@ -157,42 +156,28 @@ void startInstance(char *server, char *port, char *nonce) {
     int chat = 1;
     while(chat == 1) { 
         char *data = receive_data();
-        chat = interpret_message(cJSON_Parse(data), 0);
+        chat = interpret_message(cJSON_Parse(data), numPlayers);
         free(data);
     }
 }
 
-void joinInstanceResult(char *name, char *number, char *result) {
+void joinInstanceResult(char *name, char *number, char *result, int numPlayers) {
     if(!strcmp(result, "Yes")) {
         //receive start game
         printf("Joined game lobby successfully\n");
         printf("There are %s players in the game\n", number);
         printf("--------------------\n");
-        int chat = 1;
-        while(chat == 1) { 
+    }
+    else {
+        printf("Incorrect nonce or name already taken.\n");
+        return;
+    }
+    int chat = 1;
+    while(chat == 1) { 
             char *data = receive_data();
             chat = interpret_message(cJSON_Parse(data), atoi(number));
             free(data);
         }
-    }
-    else {
-        printf("Incorrect nonce or name already taken. Please input a unique name: \n");
-        char name[100];
-        char nonce_l[100];
-        scanf("%s", name);
-        printf("Please input the correct nonce: \n");
-        scanf("%s", nonce_l);
-        input.name = name;
-        input.nonce = atoi(nonce_l);
-        sendJoinInstance();
-        //receive joininstanceresult
-        int chat = 1;
-        while(chat == 1) { 
-            char *data = receive_data();
-            chat = interpret_message(cJSON_Parse(data), 0);
-            free(data);
-        }
-    }
 }
 
 void startGame(char *rounds, char *names[], char *numbers[], int numPlayers) {
@@ -230,7 +215,9 @@ void startRound(char *word_length, char *round, char *rounds_remaining, char *na
 
 void promptForGuess(char *word_length, char *name, char *guess_number, int numPlayers) {
     printf("Guess a %s letter word: \n", word_length);
+    pthread_mutex_lock(&g_BigLock);
     guess_ready = 1;
+    pthread_mutex_unlock(&g_BigLock);
     sleep(1);
     //receive guessresponse
     int chat = 1;
@@ -258,7 +245,9 @@ void guessResponse(char *name, char *guess, char *accepted, int numPlayers) {
     }
     else {
         printf("%s is not a valid word. Please try again: \n", guess);
+        pthread_mutex_lock(&g_BigLock);
         guess_ready = 1;
+        pthread_mutex_unlock(&g_BigLock);
         //receive guessresponse
         int chat = 1;
         while(chat == 1) { 
@@ -353,7 +342,9 @@ void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], 
         printf("%s. %s's score: %s\n", numbers[i], names[i], scores[i]);
     }
     printf("--------------------\n");
+    pthread_mutex_lock(&g_BigLock);
     game_over = 1;
+    pthread_mutex_unlock(&g_BigLock);
 }
 
 int interpret_message(cJSON *message, int numPlayers) {
@@ -362,7 +353,7 @@ int interpret_message(cJSON *message, int numPlayers) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *result = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Result"));
-        joinResult(name, result);
+        joinResult(name, result, numPlayers);
     }
 
     else if(!strcmp(message_type, "Chat")) {
@@ -379,7 +370,7 @@ int interpret_message(cJSON *message, int numPlayers) {
         char *server = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Server"));
         char *port = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Port"));
         char *nonce = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Nonce"));
-        startInstance(server, port, nonce);
+        startInstance(server, port, nonce, numPlayers);
     }
 
     else if(!strcmp(message_type, "JoinInstanceResult")) {
@@ -387,7 +378,7 @@ int interpret_message(cJSON *message, int numPlayers) {
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *number = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Number"));
         char *result = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Result"));
-        joinInstanceResult(name, number, result);
+        joinInstanceResult(name, number, result, numPlayers);
     }
 
     else if(!strcmp(message_type, "StartGame")) {
@@ -507,18 +498,19 @@ int interpret_message(cJSON *message, int numPlayers) {
 
 void *Chat(void *vargp) {
     pthread_mutex_lock(&g_BigLock);
-    while(!game_over) {
+    while(game_over == 0) {
         pthread_mutex_unlock(&g_BigLock);
-        char input[BUFFER_MAX];
-        fgets(input, BUFFER_MAX, stdin);
-        input[strlen(input) - 1] = '\0';
-        if(input[0] == '$') {
-            char *input_n = &input[1];
+        char user_input[BUFFER_MAX];
+        fgets(user_input, BUFFER_MAX, stdin);
+        user_input[strlen(user_input) - 1] = '\0';
+        if(user_input[0] == '$') {
+            char *input_n = &user_input[1];
             sendChat(input_n);
         }
-        else if(guess_ready && strlen(input) > 0) {
-            sendGuess(input);
+        else if(guess_ready == 1 && strlen(user_input) > 0) {
+            sendGuess(user_input);
         }
+
         pthread_mutex_lock(&g_BigLock);
     }
     pthread_mutex_unlock(&g_BigLock);
