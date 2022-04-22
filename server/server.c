@@ -52,7 +52,7 @@ typedef struct Game_Player {
     char *guess;
     int score;
     char *correct;
-    char *receipt_time;
+    char receipt_time[100];
     char *result;
     int  score_earned;
     char *winner;
@@ -150,7 +150,6 @@ char *receive_data(struct ClientInfo threadClient, int timeout) {
     tv.tv_usec = 0;
     setsockopt(threadClient.socketClient, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
     if ((numBytes = recv(threadClient.socketClient, szBuffer, BUFFER_MAX-1, 0)) == -1) {
-        printf("no chat!\n");
         return "";
     }
     szBuffer[numBytes] = '\0';
@@ -418,7 +417,7 @@ void chat(char *name, char *text, struct ClientInfo threadClient) {
     char *contents[2] = {"Name", "Text"};
     char *fields[2] = {name, text};
     char *response = cJSON_Print(get_message("Chat", contents, fields, 2));
-    //send_data_all(response);
+    send_data_all(response);
 }
 
 void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
@@ -484,7 +483,7 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
                 char time_buff[100];
                 snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
                 //printf("time: %s\n", time_buff);
-                wordle.players[i].receipt_time = time_buff;
+                strcpy(wordle.players[i].receipt_time, time_buff);
                 wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
                 wordle.players[i].score_earned = score_calc(wordle.players[i].result);
                 wordle.players[i].score+= wordle.players[i].score_earned;
@@ -493,7 +492,6 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
         }
     }
     
-    printf("2\n");
     char *contents[3] = {"Name", "Guess", "Accepted"};
     char *fields[3] = {name, guess, accepted};
     char *response = cJSON_Print(get_message("GuessResponse", contents, fields, 3));
@@ -529,7 +527,6 @@ char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *guess = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Guess"));
-        printf("1\n");
         return checkGuess(name, guess, threadClient);
     }
     else {
@@ -643,10 +640,15 @@ void * Thread_Game (void * pData)
             }
         }
         sleep(1); 
-        
+
         //stall until all guesses are received
         while(1) {
+            data = receive_data(threadClient, 1);
             pthread_mutex_lock(&g_BigLock);
+            if(strlen(data) > 0) {
+                interpret_message(cJSON_Parse(data), threadClient);
+                free(data);
+            }
             if(wordle.num_guessed == wordle.num_players) {
                 pthread_mutex_unlock(&g_BigLock);
                 break;
@@ -913,6 +915,7 @@ int main(int argc, char *argv[]) {
             pthread_mutex_unlock(&g_BigLock);
         }
     }
-    sleep(15);
+    printf("Ending game.....\n");
+    sleep(10);
     return 0;
 }   
