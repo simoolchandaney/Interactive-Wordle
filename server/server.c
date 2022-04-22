@@ -211,8 +211,7 @@ int score_calc(char *color_word) {
 
 
 char * word_guess_color_builder(char * guess, char * key) {
-    //TODO FIX
-    //char *letters = (char*) malloc(strlen(guess)*sizeof(char));
+
     char letters[BUFSIZ];
 
     int l, i, j, k; 
@@ -455,7 +454,7 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
         accepted = "No";
     }
 
-    //todo check if word is correct and update correct
+    //check if word is correct
     for(int i = 0; i < wordle.num_players; i++) {
         if(!strcmp(wordle.players[i].name, name)) {
             if(!strcmp(wordle.word, guess)) {
@@ -856,9 +855,6 @@ int main(int argc, char *argv[]) {
         else if (!strcmp(argv[i], "-dbg")) {
             dbg = true;
         }
-        else if (!strcmp(argv[i], "-gameonly")) {
-            // TODO: act as a game instance server only awaiting clients on port X (also ignore the provided nonce)
-        }
     }
     pthread_mutex_init(&g_BigLock, NULL);
     pthread_mutex_lock(&g_BigLock);
@@ -886,9 +882,6 @@ int main(int argc, char *argv[]) {
             pthread_mutex_unlock(&g_BigLock);
         }
     }
-    printf("Sleeping before exiting\n");
     sleep(15);
-    
-    printf("And we are done\n");
     return 0;
 }   
