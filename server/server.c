@@ -245,8 +245,6 @@ char * word_guess_color_builder(char * guess, char * key) {
     for (i = 0; i < strlen(guess); i++) {
         for (j = 0; j < strlen(key); j++) {
             if (guess[i] == key[j] && j != found_pos[count]) {
-                //printf("count: %d\n", count);
-                //printf("found pos: %d\n", found_pos[count]);
                 letters[i] = 'Y'; // yellow 
             }
         }
@@ -256,7 +254,7 @@ char * word_guess_color_builder(char * guess, char * key) {
             letters[k] = 'G'; // green 
         }
     }
-    //free(letters);
+    free(found_pos);
     char *str = letters;
     return str;
 }
@@ -414,6 +412,13 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
 }
 
 void chat(char *name, char *text, struct ClientInfo threadClient) {
+    
+    if(check_profanity(text) == 1) {
+        char new_text[BUFFER_MAX];
+        snprintf(new_text, sizeof(new_text), "%s SAID A BAD WORD. KEEP IT CLEAN!", name);
+        text = new_text;
+        name = "mpwordle";
+    }
     char *contents[2] = {"Name", "Text"};
     char *fields[2] = {name, text};
     char *response = cJSON_Print(get_message("Chat", contents, fields, 2));
@@ -576,6 +581,11 @@ void * Thread_Game (void * pData)
     }
     //send start game message
     pthread_mutex_lock(&g_BigLock);
+    char *contents0[2] = {"Name", "Text"};
+    char *fields0[2] = {"mpwordle", "Starting Game"};
+    char *response0 = cJSON_Print(get_message("Chat", contents0, fields0, 2));
+    send_data(threadClient, response0);
+    sleep(1);
     wordle.winner = "No";
     char *contents[2] = {"Rounds", "PlayerInfo"};
     char buffer[2];
@@ -608,11 +618,19 @@ void * Thread_Game (void * pData)
         for(int i = 0; i < wordle.num_players; i++) {
             wordle.players[i].winner = "No";
         }
+        //send start round message
+        char *contents00[2] = {"Name", "Text"};
+        char start_round[50] = "Starting Round ";
+        strcat(start_round, round_s);
+        char *fields00[2] = {"mpwordle", start_round};
+        char *response00 = cJSON_Print(get_message("Chat", contents00, fields00, 2));
+        send_data(threadClient, response00);
+        sleep(1);
         char *response = cJSON_Print(get_message("StartRound", contents, fields, 4));
         send_data(threadClient, response);
         wordle.num_guessed = 0;
         pthread_mutex_unlock(&g_BigLock);
-        sleep(2);
+        sleep(1);
         rounds_remaining--;
         int guess_number = 1;
         char *check = "Yes";
@@ -916,6 +934,6 @@ int main(int argc, char *argv[]) {
         }
     }
     printf("Ending game.....\n");
-    sleep(10);
+    sleep(15);
     return 0;
 }   

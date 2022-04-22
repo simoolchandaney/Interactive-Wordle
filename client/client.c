@@ -40,7 +40,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 void send_data(char *data) {
-    //printf("sending to %d: %s\n", g_sockfd, data);
+    printf("sending to %d: %s\n", g_sockfd, data);
     if ((send(g_sockfd, data, strlen(data), 0)) == -1) {
         perror("recv");
         exit(1);  
@@ -73,7 +73,7 @@ char *receive_data() {
 
     char *return_val = malloc(sizeof(szBuffer));
     memcpy(return_val, szBuffer, numBytes);
-    //printf("received: %s\n", return_val);
+    printf("received: %s\n", return_val);
     return return_val;
 }
 
@@ -143,18 +143,8 @@ void joinResult(char *name, char *result) {
     }
 }
 
-void chat(char *name, char *text) {
+void chat(char *name, char *text, int numPlayers) {
     printf("%s: %s\n", name, text);
-    if(guess_ready) {
-    }
-    else {
-        int chat = 1;
-        while(chat == 1) { 
-            char *data = receive_data();
-            chat = interpret_message(cJSON_Parse(data), 0);
-            free(data);
-        }
-    }
 }
 
 void startInstance(char *server, char *port, char *nonce) {
@@ -206,7 +196,6 @@ void joinInstanceResult(char *name, char *number, char *result) {
 }
 
 void startGame(char *rounds, char *names[], char *numbers[], int numPlayers) {
-    printf("Starting Game\n");
     printf("Players: \n");
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s\n", numbers[i], names[i]);
@@ -222,8 +211,6 @@ void startGame(char *rounds, char *names[], char *numbers[], int numPlayers) {
 }
 
 void startRound(char *word_length, char *round, char *rounds_remaining, char *names[], char *numbers[], char *scores[], int numPlayers) {
-
-    printf("Round %s is starting\n", round);
     printf("%s round remaining\n", rounds_remaining);
     printf("Players: \n");
     for(int i = 0; i < numPlayers; i++) {
@@ -257,7 +244,7 @@ void promptForGuess(char *word_length, char *name, char *guess_number, int numPl
 
 void guessResponse(char *name, char *guess, char *accepted, int numPlayers) {
     if(!strcmp(accepted, "Yes")) {
-        printf("%s was an acceptable word \n", guess);
+        printf("%s is an acceptable word \n", guess);
         printf("--------------------\n");
         printf("Waiting for other players to guess...\n");
         sleep(1);
@@ -294,11 +281,32 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
     for(int i = 0; i < numPlayers; i++) {
         if(!strcmp(corrects[i], "Yes")) {
             printf("%s. %s guessed correctly at %s\n", numbers[i], names[i], receipt_times[i]);
-            printf("Result: %s\n", results[i]);
+            
+            for(int j = 0; j < strlen(results[i]); j++) {
+                printf("%c|",results[i][j]);
+            }
+            printf("\n");
         }
         else {
             printf("%s. %s guessed incorrectly at %s\n", numbers[i], names[i], receipt_times[i]);
             printf("Result: %s\n", results[i]);
+
+            printf(" ");
+            for(int k = 0; k < strlen(results[i]); k++) {
+                printf("- ");
+            }
+            printf("\n");
+
+            printf("|");
+            for(int j = 0; j < strlen(results[i]); j++) {
+                printf("%c|",results[i][j]);
+            }
+            printf("\n ");
+
+            for(int l = 0; l < strlen(results[i]); l++) {
+                printf("- ");
+            }
+            printf("\n");
         }
     }
     printf("--------------------\n");
@@ -361,7 +369,7 @@ int interpret_message(cJSON *message, int numPlayers) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *text = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Text"));
-        chat(name, text);
+        chat(name, text, numPlayers);
         return 1; //need to alert that this is a chat message so we can recall recv
 
     }
