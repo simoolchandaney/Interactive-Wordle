@@ -40,6 +40,7 @@ void *get_in_addr(struct sockaddr *sa)
 }
 
 void send_data(char *data) {
+    //send data to server
     //printf("sending to %d: %s\n", g_sockfd, data);
     if ((send(g_sockfd, data, strlen(data), 0)) == -1) {
         perror("recv");
@@ -48,6 +49,7 @@ void send_data(char *data) {
 }
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
+    //form json message
     cJSON *message = cJSON_CreateObject();
     cJSON_AddStringToObject(message, "MessageType", message_type);
     cJSON *data = cJSON_CreateObject();
@@ -63,6 +65,7 @@ cJSON *get_message(char *message_type, char *contents[], char *fields[], int con
 }
 
 char *receive_data() {
+    //revceive data from server
     char szBuffer[BUFFER_MAX];
     int numBytes;
     if ((numBytes = recv(g_sockfd, szBuffer, BUFFER_MAX - 1, 0)) == -1) {
@@ -78,6 +81,7 @@ char *receive_data() {
 }
 
 void sendJoin() {
+    //attempt to join lobby
     printf("Attempting to join lobby...\n");
     char *contents[2] = {"Name", "Client"};
     char *fields[2] = {input.name, "ISJ-C"};
@@ -87,6 +91,7 @@ void sendJoin() {
 }
 
 void sendJoinInstance() {
+    //attempt to join game
     char *contents[2] = {"Name", "Nonce"};
     char *fields[2] = {"", ""};
     fields[0] = input.name;
@@ -100,6 +105,7 @@ void sendJoinInstance() {
 }
 
 void sendChat(char *text) {
+    //send chat message
     char *contents[2] = {"Name", "Text"};
     char *fields[2] = {input.name, ""};
     fields[1] = text;
@@ -108,6 +114,7 @@ void sendChat(char *text) {
     send_data(message);
 }
 void sendGuess(char *guess) {
+    //send guess message
     pthread_mutex_lock(&g_BigLock);
     guess_ready = 0;
     pthread_mutex_unlock(&g_BigLock);
@@ -123,6 +130,7 @@ int interpret_message(cJSON *message, int numPlayers);
 void connectToLobby(char *player_name, char *server_name, char *lobby_port);
 
 void joinResult(char *name, char *result, int numPlayers) {
+    //if lobby join was successful
     if(!strcmp(result, "Yes")) {
         printf("Joined lobby successfully\n");
         printf("--------------------\n");
@@ -147,6 +155,7 @@ void chat(char *name, char *text, int numPlayers) {
 }
 
 void startInstance(char *server, char *port, char *nonce, int numPlayers) {
+    //join game
     input.nonce = atoi(nonce);
     close(g_sockfd);
     sleep(2); //make sure lobby is created before client connects
@@ -162,6 +171,7 @@ void startInstance(char *server, char *port, char *nonce, int numPlayers) {
 }
 
 void joinInstanceResult(char *name, char *number, char *result, int numPlayers) {
+    //if join game was successful
     if(!strcmp(result, "Yes")) {
         //receive start game
         printf("Joined game lobby successfully\n");
@@ -181,6 +191,7 @@ void joinInstanceResult(char *name, char *number, char *result, int numPlayers) 
 }
 
 void startGame(char *rounds, char *names[], char *numbers[], int numPlayers) {
+    //server said game is starting
     printf("Players: \n");
     for(int i = 0; i < numPlayers; i++) {
         printf("%s. %s\n", numbers[i], names[i]);
@@ -196,6 +207,7 @@ void startGame(char *rounds, char *names[], char *numbers[], int numPlayers) {
 }
 
 void startRound(char *word_length, char *round, char *rounds_remaining, char *names[], char *numbers[], char *scores[], int numPlayers) {
+    //server said round is starting
     printf("%s round remaining\n", rounds_remaining);
     printf("Players: \n");
     for(int i = 0; i < numPlayers; i++) {
@@ -214,6 +226,7 @@ void startRound(char *word_length, char *round, char *rounds_remaining, char *na
 }
 
 void promptForGuess(char *word_length, char *name, char *guess_number, int numPlayers) {
+    //prompt user to enter a guess
     printf("Guess a %s letter word: \n", word_length);
     pthread_mutex_lock(&g_BigLock);
     guess_ready = 1;
@@ -230,6 +243,7 @@ void promptForGuess(char *word_length, char *name, char *guess_number, int numPl
 }
 
 void guessResponse(char *name, char *guess, char *accepted, int numPlayers) {
+    //check if guess was valid
     if(!strcmp(accepted, "Yes")) {
         printf("%s is an acceptable word \n", guess);
         printf("--------------------\n");
@@ -261,6 +275,8 @@ void guessResponse(char *name, char *guess, char *accepted, int numPlayers) {
 }
 
 void guessResult(char *winner, char *name, char *names[], char *numbers[], char *corrects[], char *receipt_times[], char *results[], int numPlayers) {
+    //check for correct guesses
+
     printf("All guesses are in for this round\n");
 
     if(!strcmp(winner, "Yes")) {
@@ -312,6 +328,7 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
 }
 
 void endRound(char *rounds_remaining, char *names[], char *numbers[], char *scores_earned[], char *winners[], int numPlayers) {
+    //round is over
     printf("This round has ended\n");
     printf("There are %s rounds remaining\n", rounds_remaining);
     for(int i = 0; i < numPlayers; i++) {
@@ -336,6 +353,7 @@ void endRound(char *rounds_remaining, char *names[], char *numbers[], char *scor
 }
 
 void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], int numPlayers) {
+    //end of game
     printf("Game Over\n");
     printf("%s won!\n", winner_name);
     for(int i = 0; i < numPlayers; i++) {
@@ -348,6 +366,7 @@ void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], 
 }
 
 int interpret_message(cJSON *message, int numPlayers) {
+    //interpret json sent by server
     char *message_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(message, "MessageType"));
     if(!strcmp(message_type, "JoinResult")) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
@@ -497,6 +516,8 @@ int interpret_message(cJSON *message, int numPlayers) {
 }
 
 void *Chat(void *vargp) {
+    //chat thread to read in stdin 
+
     pthread_mutex_lock(&g_BigLock);
     while(game_over == 0) {
         pthread_mutex_unlock(&g_BigLock);
@@ -598,7 +619,7 @@ int main(int argc, char *argv[])
     //create thread for chat
     connectToLobby(player_name, server_name, lobby_port);
     
-
+    //start process
     sendJoin();
     //receive joinResult message
     int chat = 1;
