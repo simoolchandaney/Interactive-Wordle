@@ -56,11 +56,13 @@ typedef struct Game_Player {
     char *result;
     int  score_earned;
     char *winner;
+    struct ClientInfo clientInfo;
 } Game_Player;
 
 typedef struct Lobby_Player {
     char *name;
     char *client;
+    struct ClientInfo clientInfo;
 } Lobby_Player;
 
 typedef struct Wordle
@@ -78,6 +80,7 @@ typedef struct Wordle
     char *chat_message;
     int num_guessed;
     struct Input inputs;
+    int in_lobby;
 } Wordle;
 
 Wordle wordle;
@@ -131,12 +134,24 @@ void send_data(struct ClientInfo threadClient, char *response) {
     }
 }
 
-char *receive_data(struct ClientInfo threadClient) {
+void send_data_all(char *response) {
+    for(int i = 0; i < wordle.inputs.numPlayers; i++) {
+        struct ClientInfo cInfo = (wordle.in_lobby == 0) ? wordle.players[i].clientInfo : wordle.lobbyPlayers[i].clientInfo;
+        send_data(cInfo, response);
+    }
+}
+
+
+char *receive_data(struct ClientInfo threadClient, int timeout) {
     int numBytes;
     char szBuffer[BUFFER_MAX];
+    struct timeval tv;
+    tv.tv_sec = timeout;
+    tv.tv_usec = 0;
+    setsockopt(threadClient.socketClient, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
     if ((numBytes = recv(threadClient.socketClient, szBuffer, BUFFER_MAX-1, 0)) == -1) {
-        perror("recv");
-        exit(1);
+        printf("no chat!\n");
+        return "";
     }
     szBuffer[numBytes] = '\0';
 
@@ -272,11 +287,6 @@ void promptGuess(int guess_number, char *name, char *word_length_s, struct Clien
     send_data(threadClient, response);
 }
 
-char *awaitGuess(char * data, struct ClientInfo threadClient) {
-    char * result = interpret_message(cJSON_Parse(data), threadClient);
-    free(data);
-    return result;
-}
 
 cJSON *get_message(char *message_type, char *contents[], char *fields[], int content_length) {
     cJSON *message = cJSON_CreateObject();
@@ -395,6 +405,7 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
         Lobby_Player player;
         player.name = name;
         player.client = client;
+        player.clientInfo = threadClient;
         wordle.lobbyPlayers[wordle.num_in_lobby] = player;
     }
     char *contents[2] = {"Name", "Result"};
@@ -404,11 +415,10 @@ void join(char *name, char *client, struct ClientInfo threadClient) {
 }
 
 void chat(char *name, char *text, struct ClientInfo threadClient) {
-    /*
-    char chat_buff[BUFSIZ];
-    snprintf(chat_buff, "%s: %s", name, test);
-    char *message = chat_buff;
-    */
+    char *contents[2] = {"Name", "Text"};
+    char *fields[2] = {name, text};
+    char *response = cJSON_Print(get_message("Chat", contents, fields, 2));
+    //send_data_all(response);
 }
 
 void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
@@ -436,6 +446,7 @@ void joinInstance(char *name, char *nonce, struct ClientInfo threadClient) {
         player.number = wordle.num_players + 1;
         player.score = 0;
         player.score_earned = 0;
+        player.clientInfo = threadClient;
         wordle.players[wordle.num_players] = player;
         wordle.num_players += 1;
     }
@@ -455,37 +466,39 @@ char *checkGuess(char *name, char *guess, struct ClientInfo threadClient) {
     }
 
     //check if word is correct
-    for(int i = 0; i < wordle.num_players; i++) {
-        if(!strcmp(wordle.players[i].name, name)) {
-            if(!strcmp(wordle.word, guess)) {
-                wordle.players[i].correct = "Yes";
-                wordle.winner = "Yes";
+    else {
+        for(int i = 0; i < wordle.num_players; i++) {
+            if(!strcmp(wordle.players[i].name, name)) {
+                if(!strcmp(wordle.word, guess)) {
+                    wordle.players[i].correct = "Yes";
+                    wordle.winner = "Yes";
+                }
+                else {
+                    wordle.players[i].correct = "No";
+                }
+                wordle.players[i].guess = guess;
+                time_t tmi;
+                struct  time* utcTime;
+                time(&tmi);
+                utcTime = (struct time *) gmtime(&tmi);
+                char time_buff[100];
+                snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
+                //printf("time: %s\n", time_buff);
+                wordle.players[i].receipt_time = time_buff;
+                wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
+                wordle.players[i].score_earned = score_calc(wordle.players[i].result);
+                wordle.players[i].score+= wordle.players[i].score_earned;
+                break;
             }
-            else {
-                wordle.players[i].correct = "No";
-            }
-            wordle.players[i].guess = guess;
-            time_t tmi;
-            struct  time* utcTime;
-            time(&tmi);
-            utcTime = (struct time *) gmtime(&tmi);
-            char time_buff[100];
-            snprintf(time_buff, sizeof(time_buff), "%2d:%02d:%02d", (utcTime->tm_hour) % 24, utcTime->tm_min, utcTime->tm_sec);
-            //printf("time: %s\n", time_buff);
-            strcpy(wordle.players[i].receipt_time, time_buff);
-            wordle.players[i].result = word_guess_color_builder(guess, wordle.word);
-            wordle.players[i].score_earned = score_calc(wordle.players[i].result);
-            wordle.players[i].score+= wordle.players[i].score_earned;
-            break;
         }
     }
     
-
+    printf("2\n");
     char *contents[3] = {"Name", "Guess", "Accepted"};
     char *fields[3] = {name, guess, accepted};
     char *response = cJSON_Print(get_message("GuessResponse", contents, fields, 3));
     send_data(threadClient, response);
-    return  accepted;
+    return accepted;
 }
 
 char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
@@ -516,11 +529,12 @@ char *interpret_message(cJSON *message, struct ClientInfo threadClient) {
         cJSON *data = cJSON_GetObjectItemCaseSensitive(message, "Data");
         char *name = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Name"));
         char *guess = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(data, "Guess"));
+        printf("1\n");
         return checkGuess(name, guess, threadClient);
     }
     else {
         //invalid json, ignore
-        char *message = receive_data(threadClient);
+        char *message = receive_data(threadClient, 1);
         interpret_message(cJSON_Parse(message), threadClient);
     }
 
@@ -541,7 +555,7 @@ void * Thread_Game (void * pData)
     threadClient = *pClient;
 
     //receive join instance
-    szBuffer = receive_data(threadClient);
+    szBuffer = receive_data(threadClient, 0);
     pthread_mutex_lock(&g_BigLock);
     char *name = interpret_message(cJSON_Parse(szBuffer), threadClient);
     free(szBuffer);
@@ -549,9 +563,14 @@ void * Thread_Game (void * pData)
 
     //loop until all players have joined
     while(1) {
+        szBuffer = receive_data(threadClient, 1);
         pthread_mutex_lock(&g_BigLock);
+        if(strlen(szBuffer) > 0) {
+            interpret_message(cJSON_Parse(szBuffer), threadClient);
+            free(szBuffer);
+        }
         if(wordle.num_players == wordle.inputs.numPlayers) {
-            pthread_mutex_unlock(&g_BigLock);
+            pthread_mutex_unlock(&g_BigLock);;
             break;
         }
         else {
@@ -599,26 +618,32 @@ void * Thread_Game (void * pData)
         sleep(2);
         rounds_remaining--;
         int guess_number = 1;
-
+        char *check = "Yes";
+        char * data = "";
         //prompt for guess
+        promptGuess(guess_number, name, word_length_s, threadClient);
         while(1) {
+            data = receive_data(threadClient, 1);
             pthread_mutex_lock(&g_BigLock);
-            promptGuess(guess_number, name, word_length_s, threadClient);
-            pthread_mutex_unlock(&g_BigLock);
-            guess_number++;
-
-            char *data = receive_data(threadClient);
-            pthread_mutex_lock(&g_BigLock);
-            if(!strcmp(awaitGuess(data, threadClient), "Yes")) {
-                wordle.num_guessed++;
-                pthread_mutex_unlock(&g_BigLock);
-                break;
+            //received a message
+            if(strlen(data) > 0) {
+                check = interpret_message(cJSON_Parse(data), threadClient); //returns yes if accepted string
+                if(!strcmp(check, "Yes")) {
+                    wordle.num_guessed++;
+                    pthread_mutex_unlock(&g_BigLock);
+                    break;
+                }  
+                else {
+                    pthread_mutex_unlock(&g_BigLock);
+                }
+                free(data);
             }
             else {
                 pthread_mutex_unlock(&g_BigLock);
             }
         }
-        sleep(1);
+        sleep(1); 
+        
         //stall until all guesses are received
         while(1) {
             pthread_mutex_lock(&g_BigLock);
@@ -689,8 +714,8 @@ void * Thread_Lobby (void * pData)
     // Copy it over to a local instance 
     threadClient = *pClient;
 
-    //get player info
-    szBuffer = receive_data(threadClient);
+    //receive join
+    szBuffer = receive_data(threadClient, 0);
     pthread_mutex_lock(&g_BigLock);
     //interpret Join message and send JoinResult back
     interpret_message(cJSON_Parse(szBuffer), threadClient);
@@ -700,15 +725,19 @@ void * Thread_Lobby (void * pData)
 
     //wait until all players are in lobby
     while(1) {
+        szBuffer = receive_data(threadClient, 1);
         pthread_mutex_lock(&g_BigLock);
+        if(strlen(szBuffer) > 0) {
+            interpret_message(cJSON_Parse(szBuffer), threadClient);
+            free(szBuffer);
+        }
         if(wordle.num_in_lobby == wordle.inputs.numPlayers) {
             pthread_mutex_unlock(&g_BigLock);
             break;
         }
         else {
             pthread_mutex_unlock(&g_BigLock);
-        }
-        
+        } 
     }
 
     //send startInstance to all clients
@@ -721,6 +750,7 @@ void * Thread_Lobby (void * pData)
     cJSON *message = get_message("StartInstance", contents, fields, 3);
     sleep(1); //make sure message sends seperately
     send_data(threadClient, cJSON_Print(message));
+    wordle.in_lobby = 0;
     pthread_mutex_unlock(&g_BigLock);
 
     return NULL;
@@ -867,6 +897,7 @@ int main(int argc, char *argv[]) {
     wordle.inputs.playPort = playPort;
     wordle.inputs.numRounds = numRounds;
     wordle.inputs.fileName = fileName;
+    wordle.in_lobby = 1;
     pthread_mutex_unlock(&g_BigLock);
     Get_Clients(lobbyPort, 0);
     Get_Clients(playPort, 1);
