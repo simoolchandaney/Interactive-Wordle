@@ -13,3 +13,4 @@ Assigned TAs:
 Due date: 04/26 @ 10 PM
 
 ## Usage
+Run client and server from main directory. Find necessary arguments in server and client READMEs.
