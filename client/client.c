@@ -286,33 +286,28 @@ void guessResult(char *winner, char *name, char *names[], char *numbers[], char 
     for(int i = 0; i < numPlayers; i++) {
         if(!strcmp(corrects[i], "Yes")) {
             printf("%s. %s guessed correctly at %s\n", numbers[i], names[i], receipt_times[i]);
-            
-            for(int j = 0; j < strlen(results[i]); j++) {
-                printf("%c|",results[i][j]);
-            }
-            printf("\n");
         }
         else {
             printf("%s. %s guessed incorrectly at %s\n", numbers[i], names[i], receipt_times[i]);
-            printf("Result: %s\n", results[i]);
-
-            printf(" ");
-            for(int k = 0; k < strlen(results[i]); k++) {
-                printf("- ");
-            }
-            printf("\n");
-
-            printf("|");
-            for(int j = 0; j < strlen(results[i]); j++) {
-                printf("%c|",results[i][j]);
-            }
-            printf("\n ");
-
-            for(int l = 0; l < strlen(results[i]); l++) {
-                printf("- ");
-            }
-            printf("\n");
         }
+
+        printf(" ");
+        for(int k = 0; k < strlen(results[i]); k++) {
+            printf("- ");
+        }
+        printf("\n");
+
+        printf("|");
+        for(int j = 0; j < strlen(results[i]); j++) {
+            printf("%c|",results[i][j]);
+        }
+        printf("\n ");
+
+        for(int l = 0; l < strlen(results[i]); l++) {
+            printf("- ");
+        }
+        printf("\n");
+        
     }
     printf("--------------------\n");
 
@@ -360,9 +355,18 @@ void endGame(char *winner_name, char *names[], char *numbers[], char *scores[], 
         printf("%s. %s's score: %s\n", numbers[i], names[i], scores[i]);
     }
     printf("--------------------\n");
-    pthread_mutex_lock(&g_BigLock);
-    game_over = 1;
-    pthread_mutex_unlock(&g_BigLock);
+    //pthread_mutex_lock(&g_BigLock);
+    //game_over = 1;
+    //pthread_mutex_unlock(&g_BigLock);
+
+    //START NEXT GAME receive start game
+    int chat = 1;
+    while(chat == 1) { 
+        char *data = receive_data();
+        chat = interpret_message(cJSON_Parse(data), numPlayers);
+        free(data);
+    }
+
 }
 
 int interpret_message(cJSON *message, int numPlayers) {
