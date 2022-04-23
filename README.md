@@ -14,7 +14,7 @@ Due date: 04/26 @ 10 PM
 
 ## Usage
 Run client and server from main directory. Find necessary arguments in server and client READMEs.
-Use chat by pressing $ then sending chat.
+Use chat by pressing $ then sending message.
 
 Extensions:
 1. Chat profanity filter, will print warning message
