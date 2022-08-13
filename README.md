@@ -1,5 +1,4 @@
-# ComputerNetworksProject03
-Computer Networks Project 3 Repository
+# Interactive Wordle
 
 Group members:
 - Ian Havenaar
